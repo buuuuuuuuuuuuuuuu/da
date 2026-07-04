@@ -6,8 +6,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="da" />
-<link rel="apple-touch-icon" href="apple-touch-icon.png" />
-<link rel="icon" type="image/png" href="favicon.png" />
+<link rel="manifest" href="./manifest.json" />
+<link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+<link rel="icon" type="image/png" href="./favicon.png" />
 <meta name="color-scheme" content="dark light" />
 <meta name="theme-color" content="#04120A" />
 <title>da</title>
@@ -235,7 +236,7 @@
       </div>
 
       <h1>Wohin soll's gehen?</h1>
-      <p class="sub">Gib ein Ziel ein. Die Nadel zeigt dann immer dorthin — Karte gibt's keine.</p>
+      <p class="sub">Gib ein Ziel ein. Der Pfeil zeigt dann immer dorthin — Karte gibt's keine.</p>
 
       <div class="field">
         <input id="q" type="text" inputmode="search" enterkeyhint="search"
@@ -313,7 +314,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = '2026.07.04.5';
+const APP_VERSION = '2026.07.04.6';
 
 /* ---------------- Geo-Mathe ---------------- */
 const R = 6371000; // m
@@ -631,7 +632,7 @@ function frame(){
     }else{
       setStatus('none','Richtung fehlt');
       el('navHint').textContent = state.compassGranted
-        ? 'Losfahren, damit sich die Nadel an der Bewegung ausrichtet.'
+        ? 'Losfahren, damit sich der Pfeil an der Bewegung ausrichtet.'
         : 'Losfahren oder oben den Kompass aktivieren.';
       if(window.DeviceOrientationEvent && typeof window.DeviceOrientationEvent.requestPermission==='function'
          && !state.compassGranted){
@@ -672,6 +673,13 @@ setInterval(checkVersion, 5 * 60 * 1000); // alle 5 Minuten
 document.addEventListener('visibilitychange', ()=>{
   if(document.visibilityState === 'visible') checkVersion();
 });
+
+/* ---------------- Service Worker ---------------- */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('./sw.js').catch(()=>{ /* SW optional — App läuft auch ohne */ });
+  });
+}
 </script>
 </body>
 </html>
