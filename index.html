@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Nadel" />
+<meta name="color-scheme" content="dark" />
+<meta name="theme-color" content="#0A0D13" />
+<title>Nadel</title>
+<style>
+  :root{
+    --bg:#0A0D13;
+    --surface:#141A24;
+    --surface-2:#1E2530;
+    --needle:#FFB23E;
+    --needle-dim:#8A6A2E;
+    --needle-glow:rgba(255,178,62,.35);
+    --text:#EAF0F7;
+    --muted:#7C8A9C;
+    --hairline:rgba(255,255,255,.08);
+    --danger:#FF6B6B;
+    --safe-t:env(safe-area-inset-top);
+    --safe-b:env(safe-area-inset-bottom);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;margin:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    overflow:hidden;
+    display:flex;flex-direction:column;
+    padding:var(--safe-t) 0 var(--safe-b);
+  }
+  .mono{font-family:ui-monospace,"SF Mono",Menlo,monospace;}
+  .eyebrow{
+    font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--muted);font-weight:600;
+  }
+  button{font-family:inherit;color:inherit;border:none;background:none;cursor:pointer;}
+
+  /* ---------- Views ---------- */
+  .view{position:absolute;inset:0;display:none;flex-direction:column;}
+  .view.active{display:flex;}
+
+  /* ---------- Search ---------- */
+  #search{padding:calc(var(--safe-t) + 8px) 22px var(--safe-b);justify-content:center;}
+  .search-inner{width:100%;max-width:440px;margin:0 auto;}
+  .brand{display:flex;align-items:center;gap:10px;margin-bottom:28px;}
+  .brand-mark{
+    width:26px;height:26px;position:relative;flex:0 0 auto;
+  }
+  .brand-mark svg{width:100%;height:100%;display:block;}
+  .brand-name{font-size:15px;font-weight:600;letter-spacing:.02em;}
+  h1{font-size:26px;line-height:1.25;margin:0 0 8px;font-weight:600;letter-spacing:-.01em;}
+  .sub{color:var(--muted);font-size:15px;line-height:1.5;margin:0 0 26px;}
+  .field{display:flex;gap:10px;}
+  input[type=text]{
+    flex:1;min-width:0;background:var(--surface);color:var(--text);
+    border:1px solid var(--hairline);border-radius:14px;
+    padding:15px 16px;font-size:16px;font-family:inherit;outline:none;
+    transition:border-color .15s ease;
+  }
+  input[type=text]:focus{border-color:var(--needle-dim);}
+  input::placeholder{color:#556072;}
+  .btn-go{
+    flex:0 0 auto;background:var(--needle);color:#1A1206;
+    border-radius:14px;padding:0 20px;font-size:16px;font-weight:600;
+    transition:opacity .15s ease,transform .08s ease;
+  }
+  .btn-go:active{transform:scale(.97);}
+  .btn-go[disabled]{opacity:.45;pointer-events:none;}
+
+  .results{list-style:none;margin:18px 0 0;padding:0;}
+  .result{
+    display:block;width:100%;text-align:left;
+    background:var(--surface);border:1px solid var(--hairline);
+    border-radius:14px;padding:14px 16px;margin-bottom:10px;
+    transition:background .12s ease,transform .08s ease;
+  }
+  .result:active{background:var(--surface-2);transform:scale(.99);}
+  .result-title{font-size:15px;font-weight:600;margin-bottom:2px;}
+  .result-sub{font-size:13px;color:var(--muted);line-height:1.35;}
+
+  .note{font-size:13px;line-height:1.45;margin-top:16px;min-height:18px;}
+  .note.err{color:var(--danger);}
+  .note.muted{color:var(--muted);}
+
+  .spinner{
+    width:18px;height:18px;border:2px solid var(--hairline);
+    border-top-color:var(--needle);border-radius:50%;
+    animation:spin .7s linear infinite;display:inline-block;vertical-align:-4px;margin-right:8px;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  /* ---------- Nav ---------- */
+  #nav{align-items:center;justify-content:space-between;padding:22px 22px 0;}
+  .nav-top{width:100%;text-align:center;padding-top:8px;}
+  .dest-name{font-size:18px;font-weight:600;margin-top:6px;line-height:1.3;
+    max-width:88%;margin-left:auto;margin-right:auto;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+
+  .compass{
+    position:relative;flex:1 1 auto;width:100%;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .dial{position:relative;width:min(74vw,320px);aspect-ratio:1;}
+  .ring{position:absolute;inset:0;}
+  .ring svg{width:100%;height:100%;display:block;}
+  .ahead{
+    position:absolute;top:2%;left:50%;transform:translateX(-50%);
+    font-size:10px;letter-spacing:.16em;color:var(--muted);text-transform:uppercase;font-weight:600;
+  }
+  .needle-wrap{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    will-change:transform;
+  }
+  .needle-wrap svg{width:64%;height:64%;overflow:visible;
+    transition:filter .3s ease;
+    filter:drop-shadow(0 0 0 rgba(0,0,0,0));}
+  .needle-wrap.aligned svg{filter:drop-shadow(0 0 14px var(--needle-glow));}
+
+  .readout{width:100%;text-align:center;}
+  .distance{font-size:52px;font-weight:600;letter-spacing:-.02em;color:var(--needle);line-height:1;}
+  .distance .unit{font-size:22px;color:var(--muted);margin-left:6px;font-weight:600;}
+
+  .status{
+    display:inline-flex;align-items:center;gap:8px;margin-top:16px;
+    background:var(--surface);border:1px solid var(--hairline);
+    border-radius:999px;padding:7px 14px;font-size:12px;color:var(--muted);
+    letter-spacing:.04em;
+  }
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex:0 0 auto;}
+  .dot.gps{background:#4ADE80;}
+  .dot.compass{background:var(--needle);}
+  .dot.none{background:var(--danger);}
+
+  .hint{color:var(--muted);font-size:13px;line-height:1.45;margin-top:14px;
+    max-width:280px;margin-left:auto;margin-right:auto;min-height:18px;}
+
+  .nav-actions{width:100%;display:flex;gap:10px;justify-content:center;
+    padding:18px 0 calc(18px + var(--safe-b));}
+  .btn-ghost{
+    background:var(--surface);border:1px solid var(--hairline);
+    border-radius:12px;padding:12px 18px;font-size:14px;font-weight:500;color:var(--text);
+    transition:background .12s ease,transform .08s ease;
+  }
+  .btn-ghost:active{background:var(--surface-2);transform:scale(.98);}
+  .btn-ghost.accent{color:var(--needle);border-color:var(--needle-dim);}
+  .btn-ghost.hide{display:none;}
+
+  @media (prefers-reduced-motion:reduce){
+    .spinner{animation:none;}
+  }
+</style>
+</head>
+<body>
+
+  <!-- ============ SEARCH VIEW ============ -->
+  <section id="search" class="view active">
+    <div class="search-inner">
+      <div class="brand">
+        <span class="brand-mark">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M12 2 L15.5 13 L12 11 L8.5 13 Z" fill="#FFB23E"/>
+            <path d="M12 22 L8.5 13 L12 15 L15.5 13 Z" fill="#3A4453"/>
+            <circle cx="12" cy="12" r="1.6" fill="#0A0D13" stroke="#FFB23E" stroke-width="1.1"/>
+          </svg>
+        </span>
+        <span class="brand-name">Nadel</span>
+      </div>
+
+      <h1>Wohin soll's gehen?</h1>
+      <p class="sub">Gib ein Ziel ein. Die Nadel zeigt dann immer dorthin — Karte gibt's keine.</p>
+
+      <div class="field">
+        <input id="q" type="text" inputmode="search" enterkeyhint="search"
+               autocomplete="off" autocorrect="off" spellcheck="false"
+               placeholder="Adresse, Straße, Ort …" />
+        <button id="go" class="btn-go">Suchen</button>
+      </div>
+
+      <ul id="results" class="results"></ul>
+      <div id="searchNote" class="note muted"></div>
+    </div>
+  </section>
+
+  <!-- ============ NAV VIEW ============ -->
+  <section id="nav" class="view">
+    <div class="nav-top">
+      <div class="eyebrow">Ziel</div>
+      <div id="destName" class="dest-name">—</div>
+    </div>
+
+    <div class="compass">
+      <div class="dial">
+        <div class="ahead">Voraus</div>
+        <div class="ring">
+          <svg viewBox="0 0 200 200" aria-hidden="true">
+            <circle cx="100" cy="100" r="94" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="1"/>
+            <circle cx="100" cy="100" r="72" fill="none" stroke="rgba(255,255,255,.05)" stroke-width="1"/>
+            <g id="ticks" stroke="rgba(255,255,255,.16)" stroke-width="2"></g>
+            <path d="M100 6 L96 14 L104 14 Z" fill="#FFB23E" opacity=".9"/>
+          </svg>
+        </div>
+        <div id="needleWrap" class="needle-wrap">
+          <svg viewBox="0 0 100 100" aria-hidden="true">
+            <path d="M50 4 L64 58 L50 48 L36 58 Z" fill="#FFB23E"/>
+            <path d="M50 96 L36 58 L50 68 L64 58 Z" fill="#3A4453"/>
+            <circle cx="50" cy="58" r="6" fill="#0A0D13" stroke="#FFB23E" stroke-width="2.5"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="readout">
+      <div class="distance mono"><span id="distVal">—</span><span id="distUnit" class="unit"></span></div>
+      <div class="status">
+        <span id="statusDot" class="dot none"></span>
+        <span id="statusText">Suche Signal …</span>
+      </div>
+      <div id="navHint" class="hint"></div>
+    </div>
+
+    <div class="nav-actions">
+      <button id="enableCompass" class="btn-ghost accent hide">Kompass aktivieren</button>
+      <button id="changeDest" class="btn-ghost">Ziel ändern</button>
+    </div>
+  </section>
+
+<script>
+"use strict";
+
+/* ---------------- Geo-Mathe ---------------- */
+const R = 6371000; // m
+const toRad = d => d * Math.PI / 180;
+const toDeg = r => r * 180 / Math.PI;
+
+function bearing(lat1, lon1, lat2, lon2){
+  const φ1 = toRad(lat1), φ2 = toRad(lat2), Δλ = toRad(lon2 - lon1);
+  const y = Math.sin(Δλ) * Math.cos(φ2);
+  const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+}
+function distance(lat1, lon1, lat2, lon2){
+  const φ1 = toRad(lat1), φ2 = toRad(lat2);
+  const Δφ = toRad(lat2 - lat1), Δλ = toRad(lon2 - lon1);
+  const a = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+// kürzester Weg zwischen zwei Winkeln (Grad, vorzeichenbehaftet)
+function angleDelta(from, to){
+  return ((to - from + 540) % 360) - 180;
+}
+
+/* ---------------- State ---------------- */
+const state = {
+  dest: null,          // {lat, lon, name}
+  pos: null,           // {lat, lon}
+  gpsHeading: null,    // Grad, Fahrtrichtung
+  gpsSpeed: null,      // m/s
+  compassHeading: null,// Grad
+  source: 'none',      // 'gps' | 'compass' | 'none'
+  smoothHeading: null, // geglätteter Wert der aktiven Quelle
+  displayAngle: 0,     // gerenderter Nadelwinkel
+  watchId: null,
+  compassGranted: false,
+};
+
+const GPS_SWITCH_ON  = 1.0;  // ab dieser Geschwindigkeit (m/s) → GPS-Kurs
+const GPS_SWITCH_OFF = 0.5;  // darunter → zurück auf Kompass
+
+/* ---------------- Elemente ---------------- */
+const el = id => document.getElementById(id);
+const views = { search: el('search'), nav: el('nav') };
+function show(name){
+  Object.values(views).forEach(v => v.classList.remove('active'));
+  views[name].classList.add('active');
+}
+
+/* Ticks für den Ring zeichnen (12 Marken) */
+(function drawTicks(){
+  const g = el('ticks');
+  for(let i=0;i<12;i++){
+    const a = toRad(i*30);
+    const cx=100, cy=100, r1=94, r2 = (i%3===0)?82:87;
+    const x1=cx+Math.sin(a)*r1, y1=cy-Math.cos(a)*r1;
+    const x2=cx+Math.sin(a)*r2, y2=cy-Math.cos(a)*r2;
+    const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',x1.toFixed(1)); line.setAttribute('y1',y1.toFixed(1));
+    line.setAttribute('x2',x2.toFixed(1)); line.setAttribute('y2',y2.toFixed(1));
+    if(i%3===0) line.setAttribute('stroke','rgba(255,255,255,.28)');
+    g.appendChild(line);
+  }
+})();
+
+/* ---------------- Adresssuche (Nominatim) ---------------- */
+async function geocode(query){
+  const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2'
+            + '&addressdetails=1&limit=6&accept-language=de&q=' + encodeURIComponent(query);
+  const res = await fetch(url, { headers:{ 'Accept':'application/json' } });
+  if(!res.ok) throw new Error('geocode');
+  return res.json();
+}
+
+function labelFor(item){
+  const a = item.address || {};
+  const line1 = [a.road, a.house_number].filter(Boolean).join(' ')
+             || item.name || a.suburb || a.city || item.display_name.split(',')[0];
+  const rest = item.display_name.split(',').slice(1).map(s=>s.trim());
+  const line2 = [a.postcode, a.city || a.town || a.village || a.municipality,
+                 a.state, a.country].filter(Boolean).join(', ') || rest.slice(0,3).join(', ');
+  return { line1, line2 };
+}
+
+const qInput = el('q'), goBtn = el('go'), resultsEl = el('results'), note = el('searchNote');
+
+async function runSearch(){
+  const q = qInput.value.trim();
+  if(!q) return;
+  resultsEl.innerHTML = '';
+  note.className = 'note muted';
+  note.innerHTML = '<span class="spinner"></span>Suche …';
+  goBtn.disabled = true;
+  try{
+    const items = await geocode(q);
+    goBtn.disabled = false;
+    if(!items.length){
+      note.className = 'note muted';
+      note.textContent = 'Nichts gefunden. Straße und Ort etwas anders formulieren?';
+      return;
+    }
+    note.textContent = '';
+    items.forEach(item=>{
+      const {line1,line2} = labelFor(item);
+      const li = document.createElement('li');
+      const btn = document.createElement('button');
+      btn.className = 'result';
+      btn.innerHTML = `<div class="result-title"></div><div class="result-sub"></div>`;
+      btn.querySelector('.result-title').textContent = line1;
+      btn.querySelector('.result-sub').textContent = line2;
+      btn.addEventListener('click', ()=> startNav({
+        lat: parseFloat(item.lat), lon: parseFloat(item.lon), name: line1
+      }));
+      li.appendChild(btn);
+      resultsEl.appendChild(li);
+    });
+  }catch(e){
+    goBtn.disabled = false;
+    note.className = 'note err';
+    note.textContent = 'Suche gerade nicht erreichbar. Internetverbindung prüfen und nochmal.';
+  }
+}
+goBtn.addEventListener('click', runSearch);
+qInput.addEventListener('keydown', e=>{ if(e.key==='Enter') runSearch(); });
+
+/* ---------------- Navigation starten ---------------- */
+function startNav(dest){
+  state.dest = dest;
+  el('destName').textContent = dest.name;
+  show('nav');
+  // Kompass-Permission an diese Nutzer-Geste hängen (iOS verlangt das)
+  requestCompass().finally(startGeolocation);
+}
+
+el('changeDest').addEventListener('click', ()=>{
+  if(state.watchId!==null){ navigator.geolocation.clearWatch(state.watchId); state.watchId=null; }
+  resultsEl.innerHTML=''; note.textContent=''; qInput.value = state.dest?.name || '';
+  show('search'); qInput.focus();
+});
+
+/* ---------------- Geolocation ---------------- */
+function startGeolocation(){
+  if(!('geolocation' in navigator)){
+    setStatus('none','Ortung nicht verfügbar');
+    el('navHint').textContent = 'Dieses Gerät liefert keinen Standort.';
+    return;
+  }
+  if(state.watchId!==null) return;
+  state.watchId = navigator.geolocation.watchPosition(
+    p=>{
+      state.pos = { lat:p.coords.latitude, lon:p.coords.longitude };
+      state.gpsHeading = (p.coords.heading==null || isNaN(p.coords.heading)) ? null : p.coords.heading;
+      state.gpsSpeed   = (p.coords.speed==null   || isNaN(p.coords.speed))   ? null : p.coords.speed;
+    },
+    err=>{
+      if(err.code === err.PERMISSION_DENIED){
+        setStatus('none','Standort blockiert');
+        el('navHint').textContent = 'Standortfreigabe für diese Seite erlauben, dann neu laden.';
+      }else{
+        setStatus('none','Kein Standort');
+        el('navHint').textContent = 'Standort gerade nicht verfügbar — freien Himmel suchen.';
+      }
+    },
+    { enableHighAccuracy:true, maximumAge:1000, timeout:15000 }
+  );
+}
+
+/* ---------------- Kompass (Fallback) ---------------- */
+function onOrientation(e){
+  // iOS: webkitCompassHeading = Grad im Uhrzeigersinn ab Norden
+  if(typeof e.webkitCompassHeading === 'number' && !isNaN(e.webkitCompassHeading)){
+    state.compassHeading = e.webkitCompassHeading;
+  }else if(e.alpha!=null){
+    // Fallback für Nicht-iOS: alpha ist gegen den Uhrzeigersinn
+    state.compassHeading = (360 - e.alpha) % 360;
+  }
+}
+async function requestCompass(){
+  const DOE = window.DeviceOrientationEvent;
+  try{
+    if(DOE && typeof DOE.requestPermission === 'function'){
+      const r = await DOE.requestPermission();      // muss aus Nutzer-Geste kommen
+      if(r === 'granted'){
+        window.addEventListener('deviceorientation', onOrientation, true);
+        state.compassGranted = true;
+        el('enableCompass').classList.add('hide');
+      }else{
+        el('enableCompass').classList.remove('hide');
+      }
+    }else if(DOE){
+      window.addEventListener('deviceorientation', onOrientation, true);
+      state.compassGranted = true;
+    }
+  }catch(_){
+    el('enableCompass').classList.remove('hide');
+  }
+}
+el('enableCompass').addEventListener('click', requestCompass);
+
+/* ---------------- Quelle wählen (mit Hysterese) ---------------- */
+function pickHeading(){
+  const hasGps = state.gpsHeading!=null;
+  const spd = state.gpsSpeed;
+  if(state.source==='gps'){
+    if(hasGps && (spd==null || spd>GPS_SWITCH_OFF)) return {v:state.gpsHeading, s:'gps'};
+  }else{
+    if(hasGps && spd!=null && spd>GPS_SWITCH_ON) return {v:state.gpsHeading, s:'gps'};
+  }
+  if(state.compassHeading!=null) return {v:state.compassHeading, s:'compass'};
+  if(hasGps) return {v:state.gpsHeading, s:'gps'};
+  return {v:null, s:'none'};
+}
+
+/* ---------------- Status-Anzeige ---------------- */
+function setStatus(kind, text){
+  el('statusDot').className = 'dot ' + kind;
+  el('statusText').textContent = text;
+}
+
+/* ---------------- Render-Loop ---------------- */
+const reduceMotion = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+
+function fmtDistance(m){
+  if(m < 1000) return { val:String(Math.round(m)), unit:'m' };
+  if(m < 10000) return { val:(m/1000).toFixed(2), unit:'km' };
+  return { val:(m/1000).toFixed(1), unit:'km' };
+}
+
+function frame(){
+  const { dest, pos } = state;
+
+  if(dest && pos){
+    const dist = distance(pos.lat,pos.lon,dest.lat,dest.lon);
+    const brg  = bearing(pos.lat,pos.lon,dest.lat,dest.lon);
+    const f = fmtDistance(dist);
+    el('distVal').textContent = f.val;
+    el('distUnit').textContent = f.unit;
+
+    const pick = pickHeading();
+    state.source = pick.s;
+
+    if(pick.v!=null){
+      // aktive Quelle glätten (Kompass stärker als GPS)
+      const factor = pick.s==='compass' ? 0.15 : 0.35;
+      if(state.smoothHeading==null) state.smoothHeading = pick.v;
+      state.smoothHeading = (state.smoothHeading + angleDelta(state.smoothHeading, pick.v)*factor + 360) % 360;
+
+      const rel = (brg - state.smoothHeading + 360) % 360;   // 0 = geradeaus
+      // Nadel weich zum Ziel-Winkel drehen (kürzester Weg)
+      const step = reduceMotion ? 1 : 0.22;
+      state.displayAngle = (state.displayAngle + angleDelta(state.displayAngle, rel)*step + 360) % 360;
+
+      const wrap = el('needleWrap');
+      wrap.style.transform = `rotate(${state.displayAngle}deg)`;
+      const aligned = Math.abs(angleDelta(0, rel)) < 12;
+      wrap.classList.toggle('aligned', aligned);
+
+      if(pick.s==='gps'){ setStatus('gps','GPS-Kurs'); el('navHint').textContent=''; }
+      else { setStatus('compass','Kompass'); el('navHint').textContent=''; }
+    }else{
+      setStatus('none','Richtung fehlt');
+      el('navHint').textContent = state.compassGranted
+        ? 'Losfahren, damit sich die Nadel an der Bewegung ausrichtet.'
+        : 'Losfahren oder oben den Kompass aktivieren.';
+      if(window.DeviceOrientationEvent && typeof window.DeviceOrientationEvent.requestPermission==='function'
+         && !state.compassGranted){
+        el('enableCompass').classList.remove('hide');
+      }
+    }
+  }else if(dest){
+    setStatus('none','Suche Signal …');
+    el('navHint').textContent = 'Warte auf ersten Standortfix …';
+  }
+
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
