@@ -138,6 +138,73 @@
   .note.err{color:var(--danger);}
   .note.muted{color:var(--muted);}
 
+  /* ---------- Favoriten ---------- */
+  .fav-section{margin-top:26px;}
+  .fav-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px;}
+  .fav-head .eyebrow{font-family:ui-monospace,"SF Mono",Menlo,"Liberation Mono",monospace;}
+  .fav-filters{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px;}
+  .chip{
+    font-family:ui-monospace,"SF Mono",Menlo,"Liberation Mono",monospace;
+    font-size:11px;letter-spacing:.04em;
+    background:var(--surface);border:1px solid var(--hairline);color:var(--muted);
+    border-radius:999px;padding:6px 13px;transition:all .12s ease;
+  }
+  .chip:active{transform:scale(.96);}
+  .chip.on{background:var(--accent);border-color:var(--accent);color:var(--bg);font-weight:700;}
+  .fav-list{list-style:none;margin:0;padding:0;}
+  .fav{
+    display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+    background:var(--surface);border:1px solid var(--hairline);
+    border-radius:10px;padding:13px 14px;margin-bottom:9px;
+    transition:background .12s ease,transform .08s ease;
+  }
+  .fav:active{background:var(--surface-2);transform:scale(.99);}
+  .fav-body{flex:1;min-width:0;}
+  .fav-name{font-size:15px;font-weight:600;line-height:1.3;
+    font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .fav-tag{font-family:ui-monospace,"SF Mono",Menlo,"Liberation Mono",monospace;
+    font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin-top:3px;}
+  .fav-del{
+    flex:0 0 auto;width:30px;height:30px;border-radius:8px;
+    display:flex;align-items:center;justify-content:center;
+    color:var(--muted);font-size:16px;line-height:1;
+    background:transparent;border:1px solid var(--hairline);
+  }
+  .fav-del:active{color:var(--danger);border-color:var(--danger);}
+  .fav-empty{font-size:13px;color:var(--muted);line-height:1.5;
+    font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;}
+
+  /* ---------- Speichern-Dialog (Tag-Auswahl) ---------- */
+  #saveSheet{
+    position:fixed;inset:0;z-index:900;display:none;
+    align-items:flex-end;justify-content:center;
+    background:rgba(0,0,0,.55);
+  }
+  #saveSheet.show{display:flex;}
+  .sheet{
+    width:100%;max-width:440px;background:var(--surface);
+    border-top-left-radius:18px;border-top-right-radius:18px;
+    border:1px solid var(--hairline);border-bottom:none;
+    padding:22px 22px calc(22px + var(--safe-b));
+  }
+  .sheet h2{font-size:17px;font-weight:700;margin:0 0 4px;
+    font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;}
+  .sheet .sheet-sub{font-size:13px;color:var(--muted);margin:0 0 18px;line-height:1.4;
+    font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .tag-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;}
+  .tag-opt{
+    font-family:ui-monospace,"SF Mono",Menlo,"Liberation Mono",monospace;
+    font-size:13px;letter-spacing:.03em;
+    background:var(--bg);border:1px solid var(--hairline);color:var(--fg);
+    border-radius:10px;padding:14px;transition:all .12s ease;
+  }
+  .tag-opt.on{background:var(--accent);border-color:var(--accent);color:var(--bg);font-weight:700;}
+  .sheet-actions{display:flex;gap:10px;}
+  .sheet-actions .btn-ghost{flex:1;justify-content:center;text-align:center;}
+  .sheet-actions .btn-go{flex:1;padding:12px 0;text-align:center;border-radius:8px;}
+
   .spinner{
     width:16px;height:16px;border:2px solid var(--hairline);
     border-top-color:var(--accent);border-radius:50%;
@@ -247,6 +314,14 @@
 
       <ul id="results" class="results"></ul>
       <div id="searchNote" class="note muted"></div>
+
+      <div id="favSection" class="fav-section">
+        <div class="fav-head">
+          <span class="eyebrow">Favoriten</span>
+        </div>
+        <div id="favFilters" class="fav-filters"></div>
+        <ul id="favList" class="fav-list"></ul>
+      </div>
     </div>
   </section>
 
@@ -307,14 +382,28 @@
 
     <div class="nav-actions">
       <button id="enableCompass" class="btn-ghost accent hide">Kompass aktivieren</button>
+      <button id="saveFav" class="btn-ghost">Speichern</button>
       <button id="changeDest" class="btn-ghost">Ziel ändern</button>
     </div>
   </section>
 
+  <!-- ============ SAVE SHEET ============ -->
+  <div id="saveSheet">
+    <div class="sheet">
+      <h2>Als Favorit speichern</h2>
+      <p id="saveSheetSub" class="sheet-sub">—</p>
+      <div id="tagGrid" class="tag-grid"></div>
+      <div class="sheet-actions">
+        <button id="saveCancel" class="btn-ghost">Abbrechen</button>
+        <button id="saveConfirm" class="btn-go">Speichern</button>
+      </div>
+    </div>
+  </div>
+
 <script>
 "use strict";
 
-const APP_VERSION = '2026.07.04.6';
+const APP_VERSION = '2026.07.04.7';
 
 /* ---------------- Geo-Mathe ---------------- */
 const R = 6371000; // m
@@ -505,7 +594,131 @@ el('changeDest').addEventListener('click', ()=>{
   if(state.watchId!==null){ navigator.geolocation.clearWatch(state.watchId); state.watchId=null; }
   resultsEl.innerHTML=''; note.textContent=''; qInput.value = state.dest?.name || '';
   show('search'); qInput.focus();
+  renderFavorites();
 });
+
+/* ---------------- Favoriten ---------------- */
+const TAGS = ['Zuhause', 'Familie', 'Freunde', 'Arbeit'];
+const FAV_KEY = 'da.favorites.v1';
+let activeFilter = null; // null = alle anzeigen
+
+function loadFavorites(){
+  try{
+    const raw = localStorage.getItem(FAV_KEY);
+    return raw ? JSON.parse(raw) : [];
+  }catch(_){ return []; }
+}
+function saveFavorites(list){
+  try{ localStorage.setItem(FAV_KEY, JSON.stringify(list)); }catch(_){ /* Speicher voll o.ä. */ }
+}
+function addFavorite(fav){
+  const list = loadFavorites();
+  // Duplikat (gleiche Koordinaten grob) vermeiden — überschreibt Tag
+  const key = fav.lat.toFixed(5) + ',' + fav.lon.toFixed(5);
+  const idx = list.findIndex(f => (f.lat.toFixed(5)+','+f.lon.toFixed(5)) === key);
+  if(idx >= 0) list[idx] = fav; else list.unshift(fav);
+  saveFavorites(list);
+}
+function removeFavorite(id){
+  saveFavorites(loadFavorites().filter(f => f.id !== id));
+  renderFavorites();
+}
+
+function renderFilters(){
+  const box = el('favFilters');
+  const list = loadFavorites();
+  if(!list.length){ box.innerHTML = ''; return; }
+  // nur Tags anzeigen, die auch vorkommen, plus "Alle"
+  const used = TAGS.filter(t => list.some(f => f.tag === t));
+  let html = `<button class="chip${activeFilter===null?' on':''}" data-tag="">Alle</button>`;
+  html += used.map(t => `<button class="chip${activeFilter===t?' on':''}" data-tag="${t}">${t}</button>`).join('');
+  box.innerHTML = html;
+  box.querySelectorAll('.chip').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      const t = chip.getAttribute('data-tag');
+      activeFilter = t === '' ? null : t;
+      renderFavorites();
+    });
+  });
+}
+
+function renderFavorites(){
+  renderFilters();
+  const listEl = el('favList');
+  let list = loadFavorites();
+
+  if(!list.length){
+    el('favSection').style.display = '';
+    listEl.innerHTML = '<li class="fav-empty">Noch keine Favoriten. Beim Navigieren unten auf „Speichern" tippen.</li>';
+    return;
+  }
+  el('favSection').style.display = '';
+
+  const filtered = activeFilter ? list.filter(f => f.tag === activeFilter) : list;
+  listEl.innerHTML = '';
+  filtered.forEach(fav=>{
+    const li = document.createElement('li');
+    const row = document.createElement('button');
+    row.className = 'fav';
+    row.innerHTML = `<div class="fav-body">
+        <div class="fav-name"></div>
+        <div class="fav-tag"></div>
+      </div>
+      <span class="fav-del" role="button" aria-label="Löschen">✕</span>`;
+    row.querySelector('.fav-name').textContent = fav.name;
+    row.querySelector('.fav-tag').textContent = fav.tag;
+    // Antippen der Zeile → navigieren
+    row.addEventListener('click', (e)=>{
+      if(e.target.classList.contains('fav-del')) return;
+      startNav({ lat: fav.lat, lon: fav.lon, name: fav.name });
+    });
+    // Löschen
+    row.querySelector('.fav-del').addEventListener('click', (e)=>{
+      e.stopPropagation();
+      removeFavorite(fav.id);
+    });
+    li.appendChild(row);
+    listEl.appendChild(li);
+  });
+}
+
+/* ----- Speichern-Sheet (Tag-Auswahl) ----- */
+let pendingTag = null;
+
+function openSaveSheet(){
+  if(!state.dest) return;
+  pendingTag = null;
+  el('saveSheetSub').textContent = state.dest.name;
+  const grid = el('tagGrid');
+  grid.innerHTML = TAGS.map(t => `<button class="tag-opt" data-tag="${t}">${t}</button>`).join('');
+  grid.querySelectorAll('.tag-opt').forEach(opt=>{
+    opt.addEventListener('click', ()=>{
+      pendingTag = opt.getAttribute('data-tag');
+      grid.querySelectorAll('.tag-opt').forEach(o=>o.classList.remove('on'));
+      opt.classList.add('on');
+    });
+  });
+  el('saveSheet').classList.add('show');
+}
+function closeSaveSheet(){ el('saveSheet').classList.remove('show'); }
+
+el('saveFav').addEventListener('click', openSaveSheet);
+el('saveCancel').addEventListener('click', closeSaveSheet);
+el('saveSheet').addEventListener('click', (e)=>{ if(e.target.id === 'saveSheet') closeSaveSheet(); });
+el('saveConfirm').addEventListener('click', ()=>{
+  if(!state.dest) return closeSaveSheet();
+  const tag = pendingTag || 'Zuhause';
+  addFavorite({
+    id: 'f' + Date.now(),
+    name: state.dest.name,
+    lat: state.dest.lat,
+    lon: state.dest.lon,
+    tag,
+  });
+  closeSaveSheet();
+});
+
+renderFavorites();
 
 /* ---------------- Geolocation ---------------- */
 function startGeolocation(){

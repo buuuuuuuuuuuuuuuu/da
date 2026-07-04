@@ -1,6 +1,6 @@
 // Service Worker für "da"
 // Cache-Name enthält die Version — bei jedem Update wird der alte Cache verworfen.
-const VERSION = '2026.07.04.6';
+const VERSION = '2026.07.04.7';
 const CACHE = 'da-cache-' + VERSION;
 
 // Assets, die sich selten ändern und offline verfügbar sein sollen.
