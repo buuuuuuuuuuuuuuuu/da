@@ -21,6 +21,7 @@
     --muted-2:#1E3E2C;
     --hairline:rgba(107,255,176,.16);
     --danger:#FF6B6B;
+    --warn:#FFB454;
     --glow:rgba(107,255,176,.4);
     --safe-t:env(safe-area-inset-top);
     --safe-b:env(safe-area-inset-bottom);
@@ -37,6 +38,7 @@
       --muted-2:#D6CDAF;
       --hairline:rgba(43,33,24,.16);
       --danger:#B3261E;
+      --warn:#8A5A00;
       --glow:rgba(43,33,24,.22);
     }
   }
@@ -171,6 +173,15 @@
   .dot.compass{background:var(--accent);}
   .dot.none{background:var(--danger);}
 
+  .alert{
+    display:inline-flex;align-items:center;gap:7px;margin-top:10px;
+    background:var(--surface);border:1px solid var(--warn);
+    border-radius:6px;padding:6px 12px;font-size:11.5px;color:var(--warn);
+    letter-spacing:.03em;max-width:280px;
+  }
+  .alert.hide{display:none;}
+  .alert .dot{background:var(--warn);}
+
   .hint{color:var(--muted);font-size:12.5px;line-height:1.5;margin-top:14px;
     max-width:280px;margin-left:auto;margin-right:auto;min-height:18px;
     font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;}
@@ -275,6 +286,10 @@
         <span id="statusDot" class="dot none"></span>
         <span id="statusText">Suche Signal …</span>
       </div>
+      <div id="barrierAlert" class="alert hide">
+        <span class="dot"></span>
+        <span id="barrierText"></span>
+      </div>
       <div id="navHint" class="hint"></div>
     </div>
 
@@ -287,7 +302,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = '2026.07.04.1';
+const APP_VERSION = '2026.07.04.2';
 
 /* ---------------- Geo-Mathe ---------------- */
 const R = 6371000; // m
@@ -310,6 +325,73 @@ function angleDelta(from, to){
   return ((to - from + 540) % 360) - 180;
 }
 
+/* ---------------- Barrieren-Check (Gewässer/Bahnlinie auf der Luftlinie) ---------------- */
+// Einfacher 2D-Schnitttest. lon als x, lat als y — für die reine Kreuzungsfrage
+// (kein Distanz-/Winkelbedarf) ist die fehlende cos(lat)-Skalierung unerheblich.
+function ccw(a, b, c){
+  return (c.lon - a.lon) * (b.lat - a.lat) - (b.lon - a.lon) * (c.lat - a.lat);
+}
+function segmentsIntersect(p1, p2, p3, p4){
+  const d1 = ccw(p3, p4, p1), d2 = ccw(p3, p4, p2);
+  const d3 = ccw(p1, p2, p3), d4 = ccw(p1, p2, p4);
+  return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0))
+      && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
+}
+function polylineCrosses(a, b, pts){
+  for(let i = 0; i < pts.length - 1; i++){
+    if(segmentsIntersect(a, b, pts[i], pts[i+1])) return true;
+  }
+  return false;
+}
+
+async function checkBarriers(pos, dest){
+  try{
+    const pad = 0.004; // ~ etwas Puffer um die Luftlinie
+    const south = Math.min(pos.lat, dest.lat) - pad;
+    const north = Math.max(pos.lat, dest.lat) + pad;
+    const west  = Math.min(pos.lon, dest.lon) - pad;
+    const east  = Math.max(pos.lon, dest.lon) + pad;
+    const query = `[out:json][timeout:15][bbox:${south},${west},${north},${east}];
+(
+  way["waterway"~"^(river|canal|stream|drain)$"];
+  way["natural"="water"];
+  way["railway"="rail"];
+);
+out geom;`;
+
+    const res = await fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      body: 'data=' + encodeURIComponent(query),
+    });
+    if(!res.ok) return;
+    const data = await res.json();
+
+    let hitWater = false, hitRail = false;
+    for(const way of (data.elements || [])){
+      if(!way.geometry || way.geometry.length < 2) continue;
+      const pts = way.geometry.map(g => ({ lat: g.lat, lon: g.lon }));
+      if(polylineCrosses(pos, dest, pts)){
+        if(way.tags && way.tags.railway === 'rail') hitRail = true;
+        else hitWater = true;
+      }
+    }
+    showBarrierAlert(hitWater, hitRail);
+  }catch(_){
+    // Overpass nicht erreichbar o.ä. — dann eben kein Hinweis, kein Blocker fürs Kernfeature
+  }
+}
+
+function showBarrierAlert(hitWater, hitRail){
+  const box = el('barrierAlert');
+  if(!hitWater && !hitRail){ box.classList.add('hide'); return; }
+  let msg;
+  if(hitWater && hitRail) msg = 'Gewässer und Bahnlinie zwischen hier und Ziel';
+  else if(hitWater) msg = 'Gewässer zwischen hier und Ziel';
+  else msg = 'Bahnlinie zwischen hier und Ziel';
+  el('barrierText').textContent = msg;
+  box.classList.remove('hide');
+}
+
 /* ---------------- State ---------------- */
 const state = {
   dest: null,
@@ -322,6 +404,7 @@ const state = {
   displayAngle: 0,
   watchId: null,
   compassGranted: false,
+  barrierChecked: false,
 };
 
 const GPS_SWITCH_ON  = 1.0;
@@ -398,6 +481,8 @@ qInput.addEventListener('keydown', e=>{ if(e.key==='Enter') runSearch(); });
 /* ---------------- Navigation starten ---------------- */
 function startNav(dest){
   state.dest = dest;
+  state.barrierChecked = false;
+  el('barrierAlert').classList.add('hide');
   el('destName').textContent = dest.name;
   show('nav');
   requestCompass().finally(startGeolocation);
@@ -499,6 +584,11 @@ function frame(){
   const { dest, pos } = state;
 
   if(dest && pos){
+    if(!state.barrierChecked){
+      state.barrierChecked = true;
+      checkBarriers(pos, dest);
+    }
+
     const dist = distance(pos.lat,pos.lon,dest.lat,dest.lon);
     const brg  = bearing(pos.lat,pos.lon,dest.lat,dest.lon);
     const f = fmtDistance(dist);
