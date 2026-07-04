@@ -6,41 +6,56 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="Nadel" />
-<meta name="color-scheme" content="dark" />
-<meta name="theme-color" content="#0A0D13" />
+<meta name="color-scheme" content="dark light" />
+<meta name="theme-color" content="#04120A" />
 <title>Nadel</title>
 <style>
   :root{
-    --bg:#0A0D13;
-    --surface:#141A24;
-    --surface-2:#1E2530;
-    --needle:#FFB23E;
-    --needle-dim:#8A6A2E;
-    --needle-glow:rgba(255,178,62,.35);
-    --text:#EAF0F7;
-    --muted:#7C8A9C;
-    --hairline:rgba(255,255,255,.08);
+    --bg:#04120A;
+    --surface:#0A1F14;
+    --surface-2:#123322;
+    --fg:#CFFFE6;
+    --accent:#6BFFB0;
+    --gps:#4ADE80;
+    --muted:#3E6E55;
+    --muted-2:#1E3E2C;
+    --hairline:rgba(107,255,176,.16);
     --danger:#FF6B6B;
+    --glow:rgba(107,255,176,.4);
     --safe-t:env(safe-area-inset-top);
     --safe-b:env(safe-area-inset-bottom);
+  }
+  @media (prefers-color-scheme: light){
+    :root{
+      --bg:#EFE9D8;
+      --surface:#E6DFC9;
+      --surface-2:#DCD4BA;
+      --fg:#2B2118;
+      --accent:#2B2118;
+      --gps:#3E6B4F;
+      --muted:#A79B7E;
+      --muted-2:#D6CDAF;
+      --hairline:rgba(43,33,24,.16);
+      --danger:#B3261E;
+      --glow:rgba(43,33,24,.22);
+    }
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{height:100%;margin:0;}
   body{
     background:var(--bg);
-    color:var(--text);
-    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;
+    color:var(--fg);
+    font-family:ui-monospace,"SF Mono",Menlo,"Liberation Mono",monospace;
     -webkit-font-smoothing:antialiased;
     overflow:hidden;
     display:flex;flex-direction:column;
     padding:var(--safe-t) 0 var(--safe-b);
   }
-  .mono{font-family:ui-monospace,"SF Mono",Menlo,monospace;}
+  button{font-family:inherit;color:inherit;border:none;background:none;cursor:pointer;}
   .eyebrow{
-    font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+    font-size:11px;letter-spacing:.2em;text-transform:uppercase;
     color:var(--muted);font-weight:600;
   }
-  button{font-family:inherit;color:inherit;border:none;background:none;cursor:pointer;}
 
   /* ---------- Views ---------- */
   .view{position:absolute;inset:0;display:none;flex-direction:column;}
@@ -49,26 +64,28 @@
   /* ---------- Search ---------- */
   #search{padding:calc(var(--safe-t) + 8px) 22px var(--safe-b);justify-content:center;}
   .search-inner{width:100%;max-width:440px;margin:0 auto;}
-  .brand{display:flex;align-items:center;gap:10px;margin-bottom:28px;}
-  .brand-mark{
-    width:26px;height:26px;position:relative;flex:0 0 auto;
-  }
+  .brand{display:flex;align-items:center;gap:10px;margin-bottom:30px;}
+  .brand-mark{width:24px;height:24px;flex:0 0 auto;}
   .brand-mark svg{width:100%;height:100%;display:block;}
-  .brand-name{font-size:15px;font-weight:600;letter-spacing:.02em;}
-  h1{font-size:26px;line-height:1.25;margin:0 0 8px;font-weight:600;letter-spacing:-.01em;}
-  .sub{color:var(--muted);font-size:15px;line-height:1.5;margin:0 0 26px;}
+  .brand-name{font-size:14px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;}
+  h1{font-size:22px;line-height:1.3;margin:0 0 8px;font-weight:700;letter-spacing:-.01em;
+     font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;}
+  .sub{color:var(--muted);font-size:14px;line-height:1.55;margin:0 0 26px;
+       font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;}
   .field{display:flex;gap:10px;}
   input[type=text]{
-    flex:1;min-width:0;background:var(--surface);color:var(--text);
-    border:1px solid var(--hairline);border-radius:14px;
-    padding:15px 16px;font-size:16px;font-family:inherit;outline:none;
-    transition:border-color .15s ease;
+    flex:1;min-width:0;background:var(--surface);color:var(--fg);
+    border:1px solid var(--hairline);border-radius:10px;
+    padding:15px 16px;font-size:16px;
+    font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+    outline:none;transition:border-color .15s ease;
   }
-  input[type=text]:focus{border-color:var(--needle-dim);}
-  input::placeholder{color:#556072;}
+  input[type=text]:focus{border-color:var(--accent);}
+  input::placeholder{color:var(--muted);}
   .btn-go{
-    flex:0 0 auto;background:var(--needle);color:#1A1206;
-    border-radius:14px;padding:0 20px;font-size:16px;font-weight:600;
+    flex:0 0 auto;background:var(--accent);color:var(--bg);
+    border-radius:10px;padding:0 20px;font-size:14px;font-weight:700;
+    letter-spacing:.04em;text-transform:uppercase;
     transition:opacity .15s ease,transform .08s ease;
   }
   .btn-go:active{transform:scale(.97);}
@@ -78,78 +95,78 @@
   .result{
     display:block;width:100%;text-align:left;
     background:var(--surface);border:1px solid var(--hairline);
-    border-radius:14px;padding:14px 16px;margin-bottom:10px;
+    border-radius:10px;padding:14px 16px;margin-bottom:10px;
     transition:background .12s ease,transform .08s ease;
   }
   .result:active{background:var(--surface-2);transform:scale(.99);}
-  .result-title{font-size:15px;font-weight:600;margin-bottom:2px;}
-  .result-sub{font-size:13px;color:var(--muted);line-height:1.35;}
+  .result-title{font-size:15px;font-weight:600;margin-bottom:2px;
+     font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;}
+  .result-sub{font-size:12.5px;color:var(--muted);line-height:1.4;
+     font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;}
 
-  .note{font-size:13px;line-height:1.45;margin-top:16px;min-height:18px;}
+  .note{font-size:13px;line-height:1.5;margin-top:16px;min-height:18px;
+     font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;}
   .note.err{color:var(--danger);}
   .note.muted{color:var(--muted);}
 
   .spinner{
-    width:18px;height:18px;border:2px solid var(--hairline);
-    border-top-color:var(--needle);border-radius:50%;
-    animation:spin .7s linear infinite;display:inline-block;vertical-align:-4px;margin-right:8px;
+    width:16px;height:16px;border:2px solid var(--hairline);
+    border-top-color:var(--accent);border-radius:50%;
+    animation:spin .7s linear infinite;display:inline-block;vertical-align:-3px;margin-right:8px;
   }
   @keyframes spin{to{transform:rotate(360deg);}}
 
   /* ---------- Nav ---------- */
   #nav{align-items:center;justify-content:space-between;padding:22px 22px 0;}
   .nav-top{width:100%;text-align:center;padding-top:8px;}
-  .dest-name{font-size:18px;font-weight:600;margin-top:6px;line-height:1.3;
-    max-width:88%;margin-left:auto;margin-right:auto;
+  .dest-name{font-size:16px;font-weight:700;margin-top:6px;line-height:1.35;
+    max-width:90%;margin-left:auto;margin-right:auto;
     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
 
   .compass{
     position:relative;flex:1 1 auto;width:100%;
     display:flex;align-items:center;justify-content:center;
   }
-  .dial{position:relative;width:min(74vw,320px);aspect-ratio:1;}
+  .dial{position:relative;width:min(78vw,330px);aspect-ratio:1;}
   .ring{position:absolute;inset:0;}
   .ring svg{width:100%;height:100%;display:block;}
-  .ahead{
-    position:absolute;top:2%;left:50%;transform:translateX(-50%);
-    font-size:10px;letter-spacing:.16em;color:var(--muted);text-transform:uppercase;font-weight:600;
-  }
   .needle-wrap{
     position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
     will-change:transform;
   }
-  .needle-wrap svg{width:64%;height:64%;overflow:visible;
-    transition:filter .3s ease;
-    filter:drop-shadow(0 0 0 rgba(0,0,0,0));}
-  .needle-wrap.aligned svg{filter:drop-shadow(0 0 14px var(--needle-glow));}
+  .needle-wrap svg{width:100%;height:100%;overflow:visible;
+    transition:filter .3s ease;filter:drop-shadow(0 0 0 rgba(0,0,0,0));}
+  .needle-wrap.aligned svg{filter:drop-shadow(0 0 12px var(--glow));}
 
   .readout{width:100%;text-align:center;}
-  .distance{font-size:52px;font-weight:600;letter-spacing:-.02em;color:var(--needle);line-height:1;}
-  .distance .unit{font-size:22px;color:var(--muted);margin-left:6px;font-weight:600;}
+  .distance{font-size:50px;font-weight:700;letter-spacing:-.01em;color:var(--accent);line-height:1;}
+  .distance .unit{font-size:20px;color:var(--muted);margin-left:6px;font-weight:700;}
 
   .status{
     display:inline-flex;align-items:center;gap:8px;margin-top:16px;
     background:var(--surface);border:1px solid var(--hairline);
-    border-radius:999px;padding:7px 14px;font-size:12px;color:var(--muted);
-    letter-spacing:.04em;
+    border-radius:6px;padding:6px 12px;font-size:11px;color:var(--muted);
+    letter-spacing:.1em;text-transform:uppercase;
   }
-  .dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex:0 0 auto;}
-  .dot.gps{background:#4ADE80;}
-  .dot.compass{background:var(--needle);}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--muted);flex:0 0 auto;}
+  .dot.gps{background:var(--gps);}
+  .dot.compass{background:var(--accent);}
   .dot.none{background:var(--danger);}
 
-  .hint{color:var(--muted);font-size:13px;line-height:1.45;margin-top:14px;
-    max-width:280px;margin-left:auto;margin-right:auto;min-height:18px;}
+  .hint{color:var(--muted);font-size:12.5px;line-height:1.5;margin-top:14px;
+    max-width:280px;margin-left:auto;margin-right:auto;min-height:18px;
+    font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;}
 
   .nav-actions{width:100%;display:flex;gap:10px;justify-content:center;
     padding:18px 0 calc(18px + var(--safe-b));}
   .btn-ghost{
     background:var(--surface);border:1px solid var(--hairline);
-    border-radius:12px;padding:12px 18px;font-size:14px;font-weight:500;color:var(--text);
+    border-radius:8px;padding:12px 18px;font-size:12.5px;font-weight:600;color:var(--fg);
+    letter-spacing:.04em;text-transform:uppercase;
     transition:background .12s ease,transform .08s ease;
   }
   .btn-ghost:active{background:var(--surface-2);transform:scale(.98);}
-  .btn-ghost.accent{color:var(--needle);border-color:var(--needle-dim);}
+  .btn-ghost.accent{color:var(--accent);border-color:var(--accent);}
   .btn-ghost.hide{display:none;}
 
   @media (prefers-reduced-motion:reduce){
@@ -165,9 +182,9 @@
       <div class="brand">
         <span class="brand-mark">
           <svg viewBox="0 0 24 24" fill="none">
-            <path d="M12 2 L15.5 13 L12 11 L8.5 13 Z" fill="#FFB23E"/>
-            <path d="M12 22 L8.5 13 L12 15 L15.5 13 Z" fill="#3A4453"/>
-            <circle cx="12" cy="12" r="1.6" fill="#0A0D13" stroke="#FFB23E" stroke-width="1.1"/>
+            <circle cx="12" cy="12" r="10" stroke="#3E6E55" stroke-width="1.2"/>
+            <circle cx="12" cy="12" r="6"  stroke="#3E6E55" stroke-width="1.2"/>
+            <circle cx="12" cy="6" r="1.8" fill="#6BFFB0"/>
           </svg>
         </span>
         <span class="brand-name">Nadel</span>
@@ -197,27 +214,33 @@
 
     <div class="compass">
       <div class="dial">
-        <div class="ahead">Voraus</div>
         <div class="ring">
           <svg viewBox="0 0 200 200" aria-hidden="true">
-            <circle cx="100" cy="100" r="94" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="1"/>
-            <circle cx="100" cy="100" r="72" fill="none" stroke="rgba(255,255,255,.05)" stroke-width="1"/>
-            <g id="ticks" stroke="rgba(255,255,255,.16)" stroke-width="2"></g>
-            <path d="M100 6 L96 14 L104 14 Z" fill="#FFB23E" opacity=".9"/>
+            <circle cx="100" cy="100" r="94" fill="none" stroke="var(--muted-2)" stroke-width="1"/>
+            <circle cx="100" cy="100" r="64" fill="none" stroke="var(--muted-2)" stroke-width="1"/>
+            <circle cx="100" cy="100" r="34" fill="none" stroke="var(--muted-2)" stroke-width="1"/>
+            <line x1="100" y1="4"   x2="100" y2="14"  stroke="var(--muted)" stroke-width="1.5"/>
+            <line x1="100" y1="196" x2="100" y2="186" stroke="var(--muted)" stroke-width="1.5"/>
+            <line x1="4"   y1="100" x2="14"  y2="100" stroke="var(--muted)" stroke-width="1.5"/>
+            <line x1="196" y1="100" x2="186" y2="100" stroke="var(--muted)" stroke-width="1.5"/>
           </svg>
         </div>
         <div id="needleWrap" class="needle-wrap">
-          <svg viewBox="0 0 100 100" aria-hidden="true">
-            <path d="M50 4 L64 58 L50 48 L36 58 Z" fill="#FFB23E"/>
-            <path d="M50 96 L36 58 L50 68 L64 58 Z" fill="#3A4453"/>
-            <circle cx="50" cy="58" r="6" fill="#0A0D13" stroke="#FFB23E" stroke-width="2.5"/>
+          <svg viewBox="0 0 200 200" aria-hidden="true">
+            <!-- Sweep-Schweif hinter dem Blip -->
+            <path d="M100 100 L77 9 L100 6 Z" fill="var(--accent)" opacity="0.16"/>
+            <!-- Blip auf dem äußeren Ring -->
+            <circle cx="100" cy="6" r="11" fill="var(--accent)" opacity="0.28"/>
+            <circle cx="100" cy="6" r="4.5" fill="var(--accent)"/>
+            <!-- kleiner Pfeil in der Mitte, zeigt dieselbe Richtung -->
+            <path d="M100 76 L113 101 L100 93 L87 101 Z" fill="var(--accent)"/>
           </svg>
         </div>
       </div>
     </div>
 
     <div class="readout">
-      <div class="distance mono"><span id="distVal">—</span><span id="distUnit" class="unit"></span></div>
+      <div class="distance"><span id="distVal">—</span><span id="distUnit" class="unit"></span></div>
       <div class="status">
         <span id="statusDot" class="dot none"></span>
         <span id="statusText">Suche Signal …</span>
@@ -251,27 +274,26 @@ function distance(lat1, lon1, lat2, lon2){
   const a = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
-// kürzester Weg zwischen zwei Winkeln (Grad, vorzeichenbehaftet)
 function angleDelta(from, to){
   return ((to - from + 540) % 360) - 180;
 }
 
 /* ---------------- State ---------------- */
 const state = {
-  dest: null,          // {lat, lon, name}
-  pos: null,           // {lat, lon}
-  gpsHeading: null,    // Grad, Fahrtrichtung
-  gpsSpeed: null,      // m/s
-  compassHeading: null,// Grad
-  source: 'none',      // 'gps' | 'compass' | 'none'
-  smoothHeading: null, // geglätteter Wert der aktiven Quelle
-  displayAngle: 0,     // gerenderter Nadelwinkel
+  dest: null,
+  pos: null,
+  gpsHeading: null,
+  gpsSpeed: null,
+  compassHeading: null,
+  source: 'none',
+  smoothHeading: null,
+  displayAngle: 0,
   watchId: null,
   compassGranted: false,
 };
 
-const GPS_SWITCH_ON  = 1.0;  // ab dieser Geschwindigkeit (m/s) → GPS-Kurs
-const GPS_SWITCH_OFF = 0.5;  // darunter → zurück auf Kompass
+const GPS_SWITCH_ON  = 1.0;
+const GPS_SWITCH_OFF = 0.5;
 
 /* ---------------- Elemente ---------------- */
 const el = id => document.getElementById(id);
@@ -280,22 +302,6 @@ function show(name){
   Object.values(views).forEach(v => v.classList.remove('active'));
   views[name].classList.add('active');
 }
-
-/* Ticks für den Ring zeichnen (12 Marken) */
-(function drawTicks(){
-  const g = el('ticks');
-  for(let i=0;i<12;i++){
-    const a = toRad(i*30);
-    const cx=100, cy=100, r1=94, r2 = (i%3===0)?82:87;
-    const x1=cx+Math.sin(a)*r1, y1=cy-Math.cos(a)*r1;
-    const x2=cx+Math.sin(a)*r2, y2=cy-Math.cos(a)*r2;
-    const line=document.createElementNS('http://www.w3.org/2000/svg','line');
-    line.setAttribute('x1',x1.toFixed(1)); line.setAttribute('y1',y1.toFixed(1));
-    line.setAttribute('x2',x2.toFixed(1)); line.setAttribute('y2',y2.toFixed(1));
-    if(i%3===0) line.setAttribute('stroke','rgba(255,255,255,.28)');
-    g.appendChild(line);
-  }
-})();
 
 /* ---------------- Adresssuche (Nominatim) ---------------- */
 async function geocode(query){
@@ -362,7 +368,6 @@ function startNav(dest){
   state.dest = dest;
   el('destName').textContent = dest.name;
   show('nav');
-  // Kompass-Permission an diese Nutzer-Geste hängen (iOS verlangt das)
   requestCompass().finally(startGeolocation);
 }
 
@@ -401,11 +406,9 @@ function startGeolocation(){
 
 /* ---------------- Kompass (Fallback) ---------------- */
 function onOrientation(e){
-  // iOS: webkitCompassHeading = Grad im Uhrzeigersinn ab Norden
   if(typeof e.webkitCompassHeading === 'number' && !isNaN(e.webkitCompassHeading)){
     state.compassHeading = e.webkitCompassHeading;
   }else if(e.alpha!=null){
-    // Fallback für Nicht-iOS: alpha ist gegen den Uhrzeigersinn
     state.compassHeading = (360 - e.alpha) % 360;
   }
 }
@@ -413,7 +416,7 @@ async function requestCompass(){
   const DOE = window.DeviceOrientationEvent;
   try{
     if(DOE && typeof DOE.requestPermission === 'function'){
-      const r = await DOE.requestPermission();      // muss aus Nutzer-Geste kommen
+      const r = await DOE.requestPermission();
       if(r === 'granted'){
         window.addEventListener('deviceorientation', onOrientation, true);
         state.compassGranted = true;
@@ -474,13 +477,11 @@ function frame(){
     state.source = pick.s;
 
     if(pick.v!=null){
-      // aktive Quelle glätten (Kompass stärker als GPS)
       const factor = pick.s==='compass' ? 0.15 : 0.35;
       if(state.smoothHeading==null) state.smoothHeading = pick.v;
       state.smoothHeading = (state.smoothHeading + angleDelta(state.smoothHeading, pick.v)*factor + 360) % 360;
 
-      const rel = (brg - state.smoothHeading + 360) % 360;   // 0 = geradeaus
-      // Nadel weich zum Ziel-Winkel drehen (kürzester Weg)
+      const rel = (brg - state.smoothHeading + 360) % 360;
       const step = reduceMotion ? 1 : 0.22;
       state.displayAngle = (state.displayAngle + angleDelta(state.displayAngle, rel)*step + 360) % 360;
 
