@@ -77,6 +77,12 @@
   body.has-banner #search{padding-top:calc(var(--safe-t) + 62px);transition:padding-top .25s ease;}
   body.has-banner #nav{padding-top:76px;transition:padding-top .25s ease;}
 
+  #versionTag{
+    position:fixed;left:0;right:0;bottom:calc(var(--safe-b) + 6px);
+    text-align:center;font-size:9.5px;letter-spacing:.08em;
+    color:var(--muted);opacity:.55;pointer-events:none;z-index:5;
+  }
+
   /* ---------- Views ---------- */
   .view{position:absolute;inset:0;display:none;flex-direction:column;}
   .view.active{display:flex;}
@@ -154,9 +160,9 @@
     position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
     will-change:transform;
   }
-  .needle-wrap svg{width:100%;height:100%;overflow:visible;
-    transition:filter .3s ease;filter:drop-shadow(0 0 0 rgba(0,0,0,0));}
-  .needle-wrap.aligned svg{filter:drop-shadow(0 0 12px var(--glow));}
+  .needle-wrap svg{width:100%;height:100%;overflow:visible;}
+  .needle-wrap .radar-focus{transition:filter .3s ease;filter:drop-shadow(0 0 0 rgba(0,0,0,0));}
+  .needle-wrap.aligned .radar-focus{filter:drop-shadow(0 0 10px var(--glow));}
 
   .readout{width:100%;text-align:center;}
   .distance{font-size:50px;font-weight:700;letter-spacing:-.01em;color:var(--accent);line-height:1;}
@@ -210,6 +216,8 @@
     <button id="reloadBtn">Jetzt laden</button>
   </div>
 
+  <div id="versionTag"></div>
+
   <!-- ============ SEARCH VIEW ============ -->
   <section id="search" class="view active">
     <div class="search-inner">
@@ -261,13 +269,14 @@
         </div>
         <div id="needleWrap" class="needle-wrap">
           <svg viewBox="0 0 200 200" aria-hidden="true">
-            <!-- Sweep-Schweif hinter dem Blip -->
-            <path d="M100 100 L77 9 L100 6 Z" fill="var(--accent)" opacity="0.16"/>
-            <!-- Blip auf dem äußeren Ring -->
-            <circle cx="100" cy="6" r="11" fill="var(--accent)" opacity="0.28"/>
-            <circle cx="100" cy="6" r="4.5" fill="var(--accent)"/>
-            <!-- kleiner Pfeil in der Mitte, zeigt dieselbe Richtung -->
-            <path d="M100 76 L113 101 L100 93 L87 101 Z" fill="var(--accent)"/>
+            <!-- Radar-Fläche: Schweif + Blip — hier liegt der grafische Fokus -->
+            <g class="radar-focus">
+              <path d="M100 100 L77 9 L100 6 Z" fill="var(--accent)" opacity="0.16"/>
+              <circle cx="100" cy="6" r="11" fill="var(--accent)" opacity="0.28"/>
+              <circle cx="100" cy="6" r="4.5" fill="var(--accent)"/>
+            </g>
+            <!-- kleiner, zurückhaltender Pfeil in der Mitte -->
+            <path d="M100 85 L109 101 L100 94 L91 101 Z" fill="var(--accent)" opacity="0.7"/>
             <!-- Distanz-Tag am Blip, bleibt per Gegenrotation aufrecht -->
             <g id="blipLabel">
               <rect x="106" y="-6" width="52" height="20" rx="5" fill="var(--surface)" stroke="var(--hairline)"/>
@@ -302,7 +311,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = '2026.07.04.3';
+const APP_VERSION = '2026.07.04.4';
 
 /* ---------------- Geo-Mathe ---------------- */
 const R = 6371000; // m
@@ -412,6 +421,7 @@ const GPS_SWITCH_OFF = 0.5;
 
 /* ---------------- Elemente ---------------- */
 const el = id => document.getElementById(id);
+el('versionTag').textContent = 'da · v' + APP_VERSION;
 const views = { search: el('search'), nav: el('nav') };
 function show(name){
   Object.values(views).forEach(v => v.classList.remove('active'));
@@ -647,7 +657,13 @@ async function checkVersion(){
     }
   }catch(_){ /* offline o.ä. — einfach ignorieren */ }
 }
-el('reloadBtn').addEventListener('click', ()=> location.reload());
+el('reloadBtn').addEventListener('click', ()=>{
+  // Harter, cache-umgehender Reload: eigene URL ohne Query + Cache-Buster,
+  // damit garantiert die neueste index.html geholt wird und nicht eine
+  // evtl. vom Browser/iOS zwischengespeicherte alte Fassung.
+  const url = location.pathname + '?_=' + Date.now();
+  location.replace(url);
+});
 
 checkVersion();
 setInterval(checkVersion, 5 * 60 * 1000); // alle 5 Minuten
