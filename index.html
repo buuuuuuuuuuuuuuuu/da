@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="da" />
 <link rel="manifest" href="./manifest.json" />
@@ -91,8 +92,8 @@
   .view.active{display:flex;}
 
   /* ---------- Search ---------- */
-  #search{padding:calc(var(--safe-t) + 8px) 22px var(--safe-b);justify-content:center;}
-  .search-inner{width:100%;max-width:440px;margin:0 auto;}
+  #search{padding:calc(var(--safe-t) + 8px) 22px calc(var(--safe-b) + 34px);overflow-y:auto;-webkit-overflow-scrolling:touch;}
+  .search-inner{width:100%;max-width:440px;margin:auto;}
   .brand{display:flex;align-items:center;gap:10px;margin-bottom:30px;}
   .brand-mark{width:24px;height:24px;flex:0 0 auto;}
   .brand-mark svg{width:100%;height:100%;display:block;}
@@ -159,11 +160,11 @@
     transition:background .12s ease,transform .08s ease;
   }
   .fav:active{background:var(--surface-2);transform:scale(.99);}
-  .fav-body{flex:1;min-width:0;}
-  .fav-name{font-size:15px;font-weight:600;line-height:1.3;
+  .fav-main{flex:1;min-width:0;text-align:left;padding:0;}
+  .fav-name{display:block;font-size:15px;font-weight:600;line-height:1.3;
     font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .fav-tag{font-family:ui-monospace,"SF Mono",Menlo,"Liberation Mono",monospace;
+  .fav-tag{display:block;font-family:ui-monospace,"SF Mono",Menlo,"Liberation Mono",monospace;
     font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin-top:3px;}
   .fav-del{
     flex:0 0 auto;width:30px;height:30px;border-radius:8px;
@@ -273,6 +274,7 @@
   .btn-ghost:active{background:var(--surface-2);transform:scale(.98);}
   .btn-ghost.accent{color:var(--accent);border-color:var(--accent);}
   .btn-ghost.hide{display:none;}
+  .btn-ghost[disabled]{opacity:.6;pointer-events:none;}
 
   @media (prefers-reduced-motion:reduce){
     .spinner{animation:none;}
@@ -357,7 +359,7 @@
             <path d="M100 85 L109 101 L100 94 L91 101 Z" fill="var(--accent)" opacity="0.7"/>
             <!-- Distanz-Tag am Blip, bleibt per Gegenrotation aufrecht -->
             <g id="blipLabel">
-              <rect x="106" y="-6" width="52" height="20" rx="5" fill="var(--surface)" stroke="var(--hairline)"/>
+              <rect id="blipLabelRect" x="106" y="-6" width="52" height="20" rx="5" fill="var(--surface)" stroke="var(--hairline)"/>
               <text id="blipLabelText" x="132" y="4" text-anchor="middle" dominant-baseline="middle"
                     font-size="11" font-weight="700" fill="var(--accent)"
                     font-family="ui-monospace,'SF Mono',Menlo,'Liberation Mono',monospace">—</text>
@@ -403,7 +405,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = '2026.07.04.7';
+const APP_VERSION = '2026.07.04.8';
 
 /* ---------------- Geo-Mathe ---------------- */
 const R = 6371000; // m
@@ -506,6 +508,7 @@ const state = {
   watchId: null,
   compassGranted: false,
   barrierChecked: false,
+  lastBlip: null,
 };
 
 const GPS_SWITCH_ON  = 1.0;
@@ -544,6 +547,7 @@ const qInput = el('q'), goBtn = el('go'), resultsEl = el('results'), note = el('
 async function runSearch(){
   const q = qInput.value.trim();
   if(!q) return;
+  qInput.blur(); // iOS-Tastatur einklappen
   resultsEl.innerHTML = '';
   note.className = 'note muted';
   note.innerHTML = '<span class="spinner"></span>Suche …';
@@ -624,9 +628,8 @@ function removeFavorite(id){
   renderFavorites();
 }
 
-function renderFilters(){
+function renderFilters(list){
   const box = el('favFilters');
-  const list = loadFavorites();
   if(!list.length){ box.innerHTML = ''; return; }
   // nur Tags anzeigen, die auch vorkommen, plus "Alle"
   const used = TAGS.filter(t => list.some(f => f.tag === t));
@@ -643,9 +646,11 @@ function renderFilters(){
 }
 
 function renderFavorites(){
-  renderFilters();
   const listEl = el('favList');
-  let list = loadFavorites();
+  const list = loadFavorites();
+  // Filter zurücksetzen, wenn sein Tag nicht mehr vorkommt (z.B. letzter Eintrag gelöscht)
+  if(activeFilter && !list.some(f => f.tag === activeFilter)) activeFilter = null;
+  renderFilters(list);
 
   if(!list.length){
     el('favSection').style.display = '';
@@ -658,23 +663,19 @@ function renderFavorites(){
   listEl.innerHTML = '';
   filtered.forEach(fav=>{
     const li = document.createElement('li');
-    const row = document.createElement('button');
+    const row = document.createElement('div');
     row.className = 'fav';
-    row.innerHTML = `<div class="fav-body">
-        <div class="fav-name"></div>
-        <div class="fav-tag"></div>
-      </div>
-      <span class="fav-del" role="button" aria-label="Löschen">✕</span>`;
+    row.innerHTML = `<button class="fav-main">
+        <span class="fav-name"></span>
+        <span class="fav-tag"></span>
+      </button>
+      <button class="fav-del" aria-label="Löschen">✕</button>`;
     row.querySelector('.fav-name').textContent = fav.name;
     row.querySelector('.fav-tag').textContent = fav.tag;
-    // Antippen der Zeile → navigieren
-    row.addEventListener('click', (e)=>{
-      if(e.target.classList.contains('fav-del')) return;
+    row.querySelector('.fav-main').addEventListener('click', ()=>{
       startNav({ lat: fav.lat, lon: fav.lon, name: fav.name });
     });
-    // Löschen
-    row.querySelector('.fav-del').addEventListener('click', (e)=>{
-      e.stopPropagation();
+    row.querySelector('.fav-del').addEventListener('click', ()=>{
       removeFavorite(fav.id);
     });
     li.appendChild(row);
@@ -698,6 +699,9 @@ function openSaveSheet(){
       opt.classList.add('on');
     });
   });
+  // "Zuhause" sichtbar vorauswählen — Anzeige und Ergebnis stimmen so immer überein
+  pendingTag = TAGS[0];
+  grid.querySelector('.tag-opt').classList.add('on');
   el('saveSheet').classList.add('show');
 }
 function closeSaveSheet(){ el('saveSheet').classList.remove('show'); }
@@ -707,7 +711,7 @@ el('saveCancel').addEventListener('click', closeSaveSheet);
 el('saveSheet').addEventListener('click', (e)=>{ if(e.target.id === 'saveSheet') closeSaveSheet(); });
 el('saveConfirm').addEventListener('click', ()=>{
   if(!state.dest) return closeSaveSheet();
-  const tag = pendingTag || 'Zuhause';
+  const tag = pendingTag || TAGS[0];
   addFavorite({
     id: 'f' + Date.now(),
     name: state.dest.name,
@@ -716,6 +720,10 @@ el('saveConfirm').addEventListener('click', ()=>{
     tag,
   });
   closeSaveSheet();
+  const b = el('saveFav');
+  b.textContent = 'Gespeichert ✓';
+  b.disabled = true;
+  setTimeout(()=>{ b.textContent = 'Speichern'; b.disabled = false; }, 1500);
 });
 
 renderFavorites();
@@ -810,17 +818,26 @@ function frame(){
   const { dest, pos } = state;
 
   if(dest && pos){
+    const dist = distance(pos.lat,pos.lon,dest.lat,dest.lon);
     if(!state.barrierChecked){
       state.barrierChecked = true;
-      checkBarriers(pos, dest);
+      // Nur bei realistischen Distanzen prüfen — riesige Bounding-Boxen
+      // würden Overpass überfordern (Timeout/Datenmenge).
+      if(dist <= 30000) checkBarriers(pos, dest);
     }
-
-    const dist = distance(pos.lat,pos.lon,dest.lat,dest.lon);
     const brg  = bearing(pos.lat,pos.lon,dest.lat,dest.lon);
     const f = fmtDistance(dist);
     el('distVal').textContent = f.val;
     el('distUnit').textContent = f.unit;
-    el('blipLabelText').textContent = f.val + ' ' + f.unit;
+    const blipTxt = f.val + ' ' + f.unit;
+    if(state.lastBlip !== blipTxt){
+      state.lastBlip = blipTxt;
+      const t = el('blipLabelText');
+      t.textContent = blipTxt;
+      const w = Math.ceil(t.getComputedTextLength()) + 14;
+      el('blipLabelRect').setAttribute('width', w);
+      t.setAttribute('x', 106 + w/2);
+    }
 
     const pick = pickHeading();
     state.source = pick.s;

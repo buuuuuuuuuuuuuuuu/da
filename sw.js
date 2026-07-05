@@ -1,6 +1,6 @@
 // Service Worker für "da"
 // Cache-Name enthält die Version — bei jedem Update wird der alte Cache verworfen.
-const VERSION = '2026.07.04.7';
+const VERSION = '2026.07.04.8';
 const CACHE = 'da-cache-' + VERSION;
 
 // Assets, die sich selten ändern und offline verfügbar sein sollen.
@@ -31,18 +31,27 @@ self.addEventListener('fetch', event => {
   if (req.method !== 'GET') return;
 
   const url = new URL(req.url);
-  const isCore = url.pathname.endsWith('/') ||
-                 url.pathname.endsWith('index.html') ||
-                 url.pathname.endsWith('version.json');
+
+  // version.json: NIEMALS cachen — muss immer frisch vom Netz kommen,
+  // sonst wächst der Cache mit jedem ?t=…-Check unbegrenzt.
+  if (url.pathname.endsWith('version.json')) {
+    event.respondWith(fetch(req));
+    return;
+  }
+
+  const isCore = url.pathname.endsWith('/') || url.pathname.endsWith('index.html');
 
   if (isCore) {
     // Network-First: neue Version immer bevorzugen, Cache nur als Offline-Fallback.
+    // Nur query-freie URLs cachen (Cache-Buster wie ?_=… nicht ansammeln).
     event.respondWith(
       fetch(req).then(res => {
-        const copy = res.clone();
-        caches.open(CACHE).then(c => c.put(req, copy));
+        if (!url.search) {
+          const copy = res.clone();
+          caches.open(CACHE).then(c => c.put(req, copy));
+        }
         return res;
-      }).catch(() => caches.match(req))
+      }).catch(() => caches.match(req, { ignoreSearch: true }))
     );
   } else {
     // Cache-First für statische Assets (Icons etc.).
