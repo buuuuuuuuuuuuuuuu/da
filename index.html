@@ -258,6 +258,22 @@
   }
   .alert.hide{display:none;}
   .alert .dot{background:var(--warn);}
+  .crossing-panel{display:none;margin:12px auto 0;max-width:320px;background:var(--surface);border:1px solid var(--hairline);border-radius:10px;padding:10px 10px 8px;}
+  .crossing-panel.show{display:block;}
+  .crossing-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;}
+  .crossing-title{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
+  .crossing-list{display:grid;gap:8px;}
+  .crossing-option{width:100%;display:flex;justify-content:space-between;gap:10px;align-items:flex-start;padding:10px;border-radius:8px;border:1px solid var(--hairline);background:var(--bg);text-align:left;}
+  .crossing-option.active{border-color:var(--accent);}
+  .crossing-name{font-size:13px;font-weight:700;line-height:1.35;}
+  .crossing-sub{font-size:11.5px;color:var(--muted);margin-top:3px;line-height:1.35;font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;}
+  .crossing-dist{font-size:11px;color:var(--accent);letter-spacing:.06em;white-space:nowrap;padding-top:2px;}
+  .route-chip{display:none;align-items:center;justify-content:center;gap:7px;margin-top:10px;font-size:11px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;}
+  .route-chip.show{display:inline-flex;}
+  .crossing-badge{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:6px 10px;border-radius:999px;border:1px solid var(--hairline);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);}
+  .crossing-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);}
+  .crossing-badge.foot-only .dot{background:var(--warn);}
+  .crossing-sub strong{font-weight:700;color:var(--text);font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;}
 
   .hint{color:var(--muted);font-size:12.5px;line-height:1.5;margin-top:14px;
     max-width:280px;margin-left:auto;margin-right:auto;min-height:18px;
@@ -379,6 +395,14 @@
         <span class="dot"></span>
         <span id="barrierText"></span>
       </div>
+      <div id="routeChip" class="route-chip"></div>
+      <div id="crossingPanel" class="crossing-panel">
+        <div class="crossing-head">
+          <span class="crossing-title">Querungen als Zwischenziel</span>
+          <button id="clearIntermediate" class="btn-ghost" style="padding:6px 10px;font-size:10.5px;">Zurück</button>
+        </div>
+        <div id="crossingList" class="crossing-list"></div>
+      </div>
       <div id="navHint" class="hint"></div>
     </div>
 
@@ -405,7 +429,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = '2026.07.04.8';
+const APP_VERSION = '2026.07.06.2';
 
 /* ---------------- Geo-Mathe ---------------- */
 const R = 6371000; // m
@@ -449,18 +473,22 @@ function polylineCrosses(a, b, pts){
 
 async function checkBarriers(pos, dest){
   try{
-    const pad = 0.004; // ~ etwas Puffer um die Luftlinie
+    const pad = 0.006;
     const south = Math.min(pos.lat, dest.lat) - pad;
     const north = Math.max(pos.lat, dest.lat) + pad;
     const west  = Math.min(pos.lon, dest.lon) - pad;
     const east  = Math.max(pos.lon, dest.lon) + pad;
-    const query = `[out:json][timeout:15][bbox:${south},${west},${north},${east}];
+    const query = `[out:json][timeout:20][bbox:${south},${west},${north},${east}];
 (
   way["waterway"~"^(river|canal|stream|drain)$"];
   way["natural"="water"];
   way["railway"="rail"];
+  node["railway"="level_crossing"];
+  way["bridge"="yes"];
+  way["man_made"="bridge"];
+  way["tunnel"="yes"];
 );
-out geom;`;
+out geom tags;`;
 
     const res = await fetch('https://overpass-api.de/api/interpreter', {
       method: 'POST',
@@ -470,20 +498,148 @@ out geom;`;
     const data = await res.json();
 
     let hitWater = false, hitRail = false;
-    for(const way of (data.elements || [])){
-      if(!way.geometry || way.geometry.length < 2) continue;
-      const pts = way.geometry.map(g => ({ lat: g.lat, lon: g.lon }));
-      if(polylineCrosses(pos, dest, pts)){
-        if(way.tags && way.tags.railway === 'rail') hitRail = true;
-        else hitWater = true;
+    const direct = distance(pos.lat, pos.lon, dest.lat, dest.lon);
+    const corridorM = Math.max(120, direct * 0.18);
+    const candidates = [];
+
+    const pointLineDistanceM = (a,b,p) => {
+      const kx = Math.cos(((a.lat+b.lat+p.lat)/3) * Math.PI/180) * 111320;
+      const ky = 110540;
+      const ax = a.lon*kx, ay = a.lat*ky, bx = b.lon*kx, by = b.lat*ky, px = p.lon*kx, py = p.lat*ky;
+      const abx = bx-ax, aby = by-ay, apx = px-ax, apy = py-ay;
+      const ab2 = abx*abx + aby*aby || 1;
+      const t = Math.max(0, Math.min(1, (apx*abx + apy*aby)/ab2));
+      const cx = ax + abx*t, cy = ay + aby*t;
+      return Math.hypot(px-cx, py-cy);
+    };
+
+    const isDefinitelyBlockedForCycling = (tags) => {
+      const highway = tags.highway || '';
+      if(highway === 'motorway' || highway === 'motorway_link') return true;
+      if(tags.access === 'no') return true;
+      if(tags.bicycle === 'no' && tags['bicycle:dismount'] !== 'yes' && tags['bicycle:dismount'] !== 'dismount') return true;
+      return false;
+    };
+
+    const getAccessMode = (tags) => {
+      const highway = tags.highway || '';
+      if(highway === 'motorway' || highway === 'motorway_link') return 'blocked';
+      if(tags.access === 'no' && !(tags.foot === 'yes' || tags.foot === 'designated' || tags.foot === 'permissive')) return 'blocked';
+      if(tags.bicycle === 'no'){
+        if(tags['bicycle:dismount'] === 'yes' || tags['bicycle:dismount'] === 'dismount' || tags.foot === 'yes' || tags.foot === 'designated' || tags.foot === 'permissive') return 'foot_only';
+        return 'blocked';
+      }
+      if(tags.bicycle === 'dismount' || tags['bicycle:dismount'] === 'yes' || tags['bicycle:dismount'] === 'dismount') return 'foot_only';
+      if(highway === 'footway' || highway === 'pedestrian'){
+        if(tags.bicycle === 'yes' || tags.bicycle === 'designated' || tags.bicycle === 'permissive') return 'rideable';
+        return 'foot_only';
+      }
+      if(highway === 'path' && !(tags.bicycle === 'yes' || tags.bicycle === 'designated' || tags.bicycle === 'permissive' || tags.cycleway)) return 'foot_only';
+      return 'rideable';
+    };
+
+    const pushCandidate = (lat, lon, type, barrierType, name, tags) => {
+      if(isDefinitelyBlockedForCycling(tags)) return;
+      const accessMode = getAccessMode(tags);
+      if(accessMode === 'blocked') return;
+      const p = {lat, lon};
+      const dLine = pointLineDistanceM(pos, dest, p);
+      if(dLine > corridorM) return;
+      const a = distance(pos.lat, pos.lon, lat, lon);
+      const b = distance(lat, lon, dest.lat, dest.lon);
+      const detour = Math.max(0, a + b - direct);
+      if(a > direct * 1.35 || detour > Math.max(2200, direct * 1.2)) return;
+      candidates.push({ lat, lon, type, barrierType, name, detour, score: detour + dLine * 0.8 + a * 0.05 + (accessMode === 'foot_only' ? 120 : 0), accessMode });
+    };
+
+    for(const element of (data.elements || [])){
+      const tags = element.tags || {};
+      if(element.type === 'way' && element.geometry && element.geometry.length >= 2){
+        const pts = element.geometry.map(g => ({ lat: g.lat, lon: g.lon }));
+        if((tags.railway === 'rail') && polylineCrosses(pos, dest, pts)) hitRail = true;
+        if(((tags.waterway) || tags.natural === 'water') && polylineCrosses(pos, dest, pts)) hitWater = true;
+        if(tags.bridge === 'yes' || tags.man_made === 'bridge' || tags.tunnel === 'yes'){
+          const mid = pts[Math.floor(pts.length / 2)];
+          const barrierType = tags.railway ? 'rail' : (tags.waterway || tags.natural === 'water' ? 'water' : (hitRail && !hitWater ? 'rail' : 'water'));
+          pushCandidate(mid.lat, mid.lon, tags.tunnel === 'yes' ? 'tunnel' : 'bridge', barrierType, tags.name || '', tags);
+        }
+      }
+      if(element.type === 'node' && tags.railway === 'level_crossing'){
+        pushCandidate(element.lat, element.lon, 'level_crossing', 'rail', tags.name || '', tags);
       }
     }
+
+    const unique = new Map();
+    for(const item of candidates){
+      const key = crossingKey(item);
+      if(!unique.has(key) || item.score < unique.get(key).score) unique.set(key, item);
+    }
+    state.crossingSuggestions = Array.from(unique.values()).sort((a,b)=>a.score-b.score).slice(0,5);
+    renderCrossingSuggestions();
     showBarrierAlert(hitWater, hitRail);
-  }catch(_){
-    // Overpass nicht erreichbar o.ä. — dann eben kein Hinweis, kein Blocker fürs Kernfeature
-  }
+  }catch(_){ }
 }
 
+function crossingKey(item){ return `${item.type}:${item.lat.toFixed(5)},${item.lon.toFixed(5)}`; }
+function crossingTypeLabel(type){
+  if(type === 'level_crossing') return 'Bahnübergang';
+  if(type === 'tunnel') return 'Tunnel';
+  return 'Brücke';
+}
+function formatMetersShort(m){ return m < 1000 ? `${Math.round(m)} m` : `${(m/1000).toFixed(1)} km`; }
+function setRouteChip(){
+  const chip = el('routeChip');
+  if(state.intermediateDest && state.finalDest){
+    chip.textContent = `Zwischenziel aktiv · danach ${state.finalDest.name}`;
+    chip.classList.add('show');
+  }else if(state.finalDest){
+    chip.textContent = `Endziel · ${state.finalDest.name}`;
+    chip.classList.add('show');
+  }else{
+    chip.textContent = '';
+    chip.classList.remove('show');
+  }
+}
+function renderCrossingSuggestions(){
+  const panel = el('crossingPanel');
+  const list = el('crossingList');
+  const legend = el('crossingLegend');
+  const legendText = el('crossingLegendText');
+  list.innerHTML = '';
+  if(!state.crossingSuggestions.length){
+    panel.classList.remove('show');
+    legend.hidden = true;
+    legend.classList.remove('foot-only');
+    return;
+  }
+  let hasFootOnly = false;
+  state.crossingSuggestions.forEach(item => {
+    if(item.accessMode === 'foot_only') hasFootOnly = true;
+    const btn = document.createElement('button');
+    btn.className = 'crossing-option' + (state.selectedCrossingKey === crossingKey(item) ? ' active' : '');
+    const accessText = item.accessMode === 'foot_only' ? '<strong>nur schiebend / zu Fuß</strong>' : 'mit Rad befahrbar';
+    btn.innerHTML = `<span><div class="crossing-name">${item.name || crossingTypeLabel(item.type)}</div><div class="crossing-sub">${crossingTypeLabel(item.type)} · ${item.barrierType === 'rail' ? 'bei Bahnlinie' : 'bei Gewässer'} · ${accessText}</div></span><span class="crossing-dist">+${formatMetersShort(item.detour)}</span>`;
+    btn.addEventListener('click', () => {
+      state.intermediateDest = { lat:item.lat, lon:item.lon, name:item.name || crossingTypeLabel(item.type) };
+      state.selectedCrossingKey = crossingKey(item);
+      state.dest = { ...state.intermediateDest };
+      el('destName').textContent = `${state.intermediateDest.name} · Zwischenziel`;
+      state.crossingLegendMode = item.accessMode || 'rideable';
+      setRouteChip();
+      renderCrossingSuggestions();
+    });
+    list.appendChild(btn);
+  });
+  legend.hidden = false;
+  if(state.crossingLegendMode === 'foot_only' || (!state.selectedCrossingKey && hasFootOnly)){
+    legend.classList.add('foot-only');
+    legendText.textContent = 'Gelb = nur schiebend / zu Fuß nutzbar';
+  }else{
+    legend.classList.remove('foot-only');
+    legendText.textContent = 'Querungen sind für Radfahrt freigegeben';
+  }
+  panel.classList.add('show');
+}
 function showBarrierAlert(hitWater, hitRail){
   const box = el('barrierAlert');
   if(!hitWater && !hitRail){ box.classList.add('hide'); return; }
@@ -491,7 +647,7 @@ function showBarrierAlert(hitWater, hitRail){
   if(hitWater && hitRail) msg = 'Gewässer und Bahnlinie zwischen hier und Ziel';
   else if(hitWater) msg = 'Gewässer zwischen hier und Ziel';
   else msg = 'Bahnlinie zwischen hier und Ziel';
-  el('barrierText').textContent = msg;
+  el('barrierText').textContent = msg + ' · Querung als Zwischenziel wählen';
   box.classList.remove('hide');
 }
 
@@ -509,6 +665,11 @@ const state = {
   compassGranted: false,
   barrierChecked: false,
   lastBlip: null,
+  finalDest: null,
+  intermediateDest: null,
+  crossingSuggestions: [],
+  selectedCrossingKey: null,
+  crossingLegendMode: '',
 };
 
 const GPS_SWITCH_ON  = 1.0;
