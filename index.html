@@ -31,7 +31,7 @@
     --safe-b:env(safe-area-inset-bottom);
   }
   @media (prefers-color-scheme: light){
-    :root{
+    :root:not([data-theme]){
       --bg:#EFE9D8;
       --surface:#E6DFC9;
       --surface-2:#DCD4BA;
@@ -45,6 +45,34 @@
       --warn:#8A5A00;
       --glow:rgba(43,33,24,.22);
     }
+  }
+  :root[data-theme="light"]{
+    --bg:#EFE9D8;
+    --surface:#E6DFC9;
+    --surface-2:#DCD4BA;
+    --fg:#2B2118;
+    --accent:#2B2118;
+    --gps:#3E6B4F;
+    --muted:#A79B7E;
+    --muted-2:#D6CDAF;
+    --hairline:rgba(43,33,24,.16);
+    --danger:#B3261E;
+    --warn:#8A5A00;
+    --glow:rgba(43,33,24,.22);
+  }
+  :root[data-theme="dark"]{
+    --bg:#04120A;
+    --surface:#0A1F14;
+    --surface-2:#123322;
+    --fg:#CFFFE6;
+    --accent:#6BFFB0;
+    --gps:#4ADE80;
+    --muted:#3E6E55;
+    --muted-2:#1E3E2C;
+    --hairline:rgba(107,255,176,.16);
+    --danger:#FF6B6B;
+    --warn:#FFB454;
+    --glow:rgba(107,255,176,.4);
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{height:100%;margin:0;}
@@ -80,6 +108,25 @@
   }
   body.has-banner #search{padding-top:calc(var(--safe-t) + 62px);transition:padding-top .25s ease;}
   body.has-banner #nav{padding-top:76px;transition:padding-top .25s ease;}
+
+  #themeToggle{
+    position:fixed;top:calc(var(--safe-t) + 10px);left:14px;
+    z-index:20;width:36px;height:36px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    background:color-mix(in srgb, var(--surface) 88%, transparent);
+    border:1px solid var(--hairline);
+    -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+    transition:background .2s ease,border-color .2s ease;
+  }
+  #themeToggle:active{transform:scale(.94);}
+  #themeToggle svg{width:18px;height:18px;stroke:var(--fg);fill:none;stroke-width:1.6;}
+  #themeToggle .icon-moon{display:none;}
+  :root[data-theme="light"] #themeToggle .icon-sun{display:none;}
+  :root[data-theme="light"] #themeToggle .icon-moon{display:block;}
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme]) #themeToggle .icon-sun{display:none;}
+    :root:not([data-theme]) #themeToggle .icon-moon{display:block;}
+  }
 
   #versionTag{
     position:fixed;left:0;right:0;bottom:calc(var(--safe-b) + 6px);
@@ -299,6 +346,16 @@
 </head>
 <body>
 
+  <button id="themeToggle" type="button" aria-label="Farbmodus umschalten">
+    <svg class="icon-sun" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="5"/>
+      <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+    </svg>
+    <svg class="icon-moon" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+    </svg>
+  </button>
+
   <div id="updateBanner">
     <span>Neue Version verfügbar</span>
     <button id="reloadBtn">Jetzt laden</button>
@@ -429,7 +486,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = '2026.07.06.2';
+const APP_VERSION = '2026.07.06.3';
 
 /* ---------------- Geo-Mathe ---------------- */
 const R = 6371000; // m
@@ -1071,6 +1128,36 @@ if('serviceWorker' in navigator){
     navigator.serviceWorker.register('./sw.js').catch(()=>{ /* SW optional — App läuft auch ohne */ });
   });
 }
+
+/* ---------------- Theme Toggle ---------------- */
+(function(){
+  const root = document.documentElement;
+  const toggleBtn = document.getElementById('themeToggle');
+  const systemDark = window.matchMedia('(prefers-color-scheme: dark)');
+  let theme = null; // null = folgt Systemeinstellung
+
+  function applyTheme(){
+    if(theme === null){
+      root.removeAttribute('data-theme');
+    }else{
+      root.setAttribute('data-theme', theme);
+    }
+    const isDark = theme === null ? systemDark.matches : theme === 'dark';
+    toggleBtn.setAttribute('aria-label', isDark ? 'Zu Light Mode wechseln' : 'Zu Dark Mode wechseln');
+    const metaTheme = document.querySelector('meta[name="theme-color"]');
+    if(metaTheme) metaTheme.setAttribute('content', isDark ? '#04120A' : '#EFE9D8');
+  }
+
+  toggleBtn.addEventListener('click', ()=>{
+    const currentlyDark = theme === null ? systemDark.matches : theme === 'dark';
+    theme = currentlyDark ? 'light' : 'dark';
+    applyTheme();
+  });
+
+  systemDark.addEventListener?.('change', ()=>{ if(theme === null) applyTheme(); });
+  applyTheme();
+})();
+
 </script>
 </body>
 </html>
