@@ -486,7 +486,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = '2026.07.06.3';
+const APP_VERSION = '2026.07.06.4';
 
 /* ---------------- Geo-Mathe ---------------- */
 const R = 6371000; // m
@@ -535,10 +535,17 @@ async function checkBarriers(pos, dest){
     const north = Math.max(pos.lat, dest.lat) + pad;
     const west  = Math.min(pos.lon, dest.lon) - pad;
     const east  = Math.max(pos.lon, dest.lon) + pad;
-    const query = `[out:json][timeout:20][bbox:${south},${west},${north},${east}];
+    // Große Flüsse/Wasserflächen (z. B. Spree, Havel) sind in OSM meist als
+    // Multipolygon-Relation erfasst, nicht als einfacher "way". Deshalb werden
+    // hier zusätzlich rel["natural"="water"] und rel["waterway"=river/canal]
+    // abgefragt — "out geom" liefert bei Relationen automatisch die Geometrie
+    // jedes Way-Mitglieds mit, sodass sich Kreuzungen genauso prüfen lassen.
+    const query = `[out:json][timeout:25][bbox:${south},${west},${north},${east}];
 (
   way["waterway"~"^(river|canal|stream|drain)$"];
   way["natural"="water"];
+  rel["natural"="water"];
+  rel["waterway"~"^(river|canal)$"];
   way["railway"="rail"];
   node["railway"="level_crossing"];
   way["bridge"="yes"];
@@ -611,6 +618,8 @@ out geom tags;`;
 
     for(const element of (data.elements || [])){
       const tags = element.tags || {};
+
+      // Einfache Ways: Flüsse/Bäche, Bahnlinien, Brücken, Tunnel
       if(element.type === 'way' && element.geometry && element.geometry.length >= 2){
         const pts = element.geometry.map(g => ({ lat: g.lat, lon: g.lon }));
         if((tags.railway === 'rail') && polylineCrosses(pos, dest, pts)) hitRail = true;
@@ -621,6 +630,22 @@ out geom tags;`;
           pushCandidate(mid.lat, mid.lon, tags.tunnel === 'yes' ? 'tunnel' : 'bridge', barrierType, tags.name || '', tags);
         }
       }
+
+      // Relationen (große Flüsse/Wasserflächen als Multipolygon, z. B. Spree, Havel):
+      // Overpass liefert bei "out geom" für Relationen die Geometrie jedes
+      // Way-Mitglieds direkt im members-Array mit.
+      if(element.type === 'relation' && Array.isArray(element.members)){
+        const isWaterRelation = tags.natural === 'water' || !!tags.waterway;
+        if(isWaterRelation){
+          for(const member of element.members){
+            if(member.type === 'way' && Array.isArray(member.geometry) && member.geometry.length >= 2){
+              const pts = member.geometry.map(g => ({ lat: g.lat, lon: g.lon }));
+              if(polylineCrosses(pos, dest, pts)) hitWater = true;
+            }
+          }
+        }
+      }
+
       if(element.type === 'node' && tags.railway === 'level_crossing'){
         pushCandidate(element.lat, element.lon, 'level_crossing', 'rail', tags.name || '', tags);
       }
