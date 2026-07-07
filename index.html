@@ -645,7 +645,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = '2026.07.07.15';
+const APP_VERSION = '2026.07.07.16';
 
 /* ---------------- Geo-Mathe ---------------- */
 const R = 6371000; // m
@@ -1009,8 +1009,18 @@ const state = {
   dest: null,
   pos: null,
   gpsHeading: null,
+  gpsHeadingTs: 0,
   gpsSpeed: null,
+  gpsAccuracy: null,
+  gpsCourse: null,
+  gpsCourseSpeed: null,
+  gpsCourseDistance: 0,
+  gpsCourseTs: 0,
+  positionHistory: [],
   compassHeading: null,
+  compassAccuracy: null,
+  compassTs: 0,
+  compassHistory: [],
   source: 'none',
   smoothHeading: null,
   displayAngle: 0,
@@ -1028,8 +1038,15 @@ const state = {
   barrierIsError: false,
 };
 
-const GPS_SWITCH_ON  = 1.0;
-const GPS_SWITCH_OFF = 0.5;
+const GPS_SWITCH_ON  = 1.2;
+const GPS_SWITCH_OFF = 0.7;
+const GPS_COURSE_MIN_DISTANCE = 12;
+const GPS_COURSE_MAX_AGE_MS = 10000;
+const GPS_HEADING_MAX_AGE_MS = 5000;
+const COMPASS_MAX_AGE_MS = 2500;
+const COMPASS_MAX_ACCURACY = 20;
+const COMPASS_MAX_JITTER = 22;
+const COMPASS_MIN_SAMPLES = 3;
 
 /* ---------------- Elemente ---------------- */
 const el = id => document.getElementById(id);
@@ -1207,6 +1224,39 @@ function startNav(dest){
   state.selectedCrossingKey = null;
   state.crossingLegendMode = '';
   state.barrierChecked = false;
+  state.smoothHeading = null;
+  state.displayAngle = 0;
+  state.gpsCourse = null;
+  state.gpsCourseSpeed = null;
+  state.gpsCourseDistance = 0;
+  state.gpsCourseTs = 0;
+  state.positionHistory = [];
+  state.compassHistory = [];
+  state.compassHeading = null;
+  state.compassAccuracy = null;
+  state.compassTs = 0;
+  state.smoothHeading = null;
+  state.displayAngle = 0;
+  state.gpsCourse = null;
+  state.gpsCourseSpeed = null;
+  state.gpsCourseDistance = 0;
+  state.gpsCourseTs = 0;
+  state.positionHistory = [];
+  state.compassHistory = [];
+  state.compassHeading = null;
+  state.compassAccuracy = null;
+  state.compassTs = 0;
+  state.smoothHeading = null;
+  state.displayAngle = 0;
+  state.gpsCourse = null;
+  state.gpsCourseSpeed = null;
+  state.gpsCourseDistance = 0;
+  state.gpsCourseTs = 0;
+  state.positionHistory = [];
+  state.compassHistory = [];
+  state.compassHeading = null;
+  state.compassAccuracy = null;
+  state.compassTs = 0;
   state.barrierSummary='';
   updateIntermediateActions(null);
   hideBarrierError();
@@ -1403,6 +1453,34 @@ el('saveConfirm').addEventListener('click', ()=>{
 renderFavorites();
 
 /* ---------------- Geolocation ---------------- */
+function updateDerivedGpsCourse(sample){
+  state.positionHistory.push(sample);
+  const minTs = sample.ts - GPS_COURSE_MAX_AGE_MS;
+  state.positionHistory = state.positionHistory.filter(item => item.ts >= minTs);
+  let anchor = null;
+  for(let i = state.positionHistory.length - 2; i >= 0; i--){
+    const candidate = state.positionHistory[i];
+    const spanMs = sample.ts - candidate.ts;
+    if(spanMs < 1200) continue;
+    const legDistance = distance(candidate.lat, candidate.lon, sample.lat, sample.lon);
+    if(legDistance >= GPS_COURSE_MIN_DISTANCE){
+      anchor = { candidate, spanMs, legDistance };
+      break;
+    }
+  }
+  if(!anchor){
+    state.gpsCourse = null;
+    state.gpsCourseSpeed = null;
+    state.gpsCourseDistance = 0;
+    state.gpsCourseTs = 0;
+    return;
+  }
+  state.gpsCourse = bearing(anchor.candidate.lat, anchor.candidate.lon, sample.lat, sample.lon);
+  state.gpsCourseSpeed = anchor.legDistance / Math.max(anchor.spanMs / 1000, 0.001);
+  state.gpsCourseDistance = anchor.legDistance;
+  state.gpsCourseTs = sample.ts;
+}
+
 function startGeolocation(){
   if(!('geolocation' in navigator)){
     setStatus('none','Ortung nicht verfügbar');
@@ -1412,9 +1490,14 @@ function startGeolocation(){
   if(state.watchId!==null) return;
   state.watchId = navigator.geolocation.watchPosition(
     p=>{
-      state.pos = { lat:p.coords.latitude, lon:p.coords.longitude };
+      const ts = Date.now();
+      const sample = { lat:p.coords.latitude, lon:p.coords.longitude, ts };
+      state.pos = { lat:sample.lat, lon:sample.lon };
       state.gpsHeading = (p.coords.heading==null || isNaN(p.coords.heading)) ? null : p.coords.heading;
-      state.gpsSpeed   = (p.coords.speed==null   || isNaN(p.coords.speed))   ? null : p.coords.speed;
+      state.gpsHeadingTs = state.gpsHeading==null ? 0 : ts;
+      state.gpsSpeed = (p.coords.speed==null || isNaN(p.coords.speed)) ? null : p.coords.speed;
+      state.gpsAccuracy = (p.coords.accuracy==null || isNaN(p.coords.accuracy)) ? null : p.coords.accuracy;
+      updateDerivedGpsCourse(sample);
     },
     err=>{
       if(err.code === err.PERMISSION_DENIED){
@@ -1430,12 +1513,30 @@ function startGeolocation(){
 }
 
 /* ---------------- Kompass (Fallback) ---------------- */
-function onOrientation(e){
-  if(typeof e.webkitCompassHeading === 'number' && !isNaN(e.webkitCompassHeading)){
-    state.compassHeading = e.webkitCompassHeading;
-  }else if(e.alpha!=null){
-    state.compassHeading = (360 - e.alpha) % 360;
+function compassJitter(history){
+  if(history.length < 2) return 0;
+  const base = history[0].heading;
+  let min = 0, max = 0;
+  for(const item of history){
+    const delta = angleDelta(base, item.heading);
+    if(delta < min) min = delta;
+    if(delta > max) max = delta;
   }
+  return max - min;
+}
+
+function onOrientation(e){
+  if(typeof e.webkitCompassHeading !== 'number' || Number.isNaN(e.webkitCompassHeading)) return;
+  const heading = (e.webkitCompassHeading + 360) % 360;
+  const accuracy = (typeof e.webkitCompassAccuracy === 'number' && !Number.isNaN(e.webkitCompassAccuracy))
+    ? Math.abs(e.webkitCompassAccuracy)
+    : null;
+  const ts = Date.now();
+  state.compassHeading = heading;
+  state.compassAccuracy = accuracy;
+  state.compassTs = ts;
+  state.compassHistory.push({ heading, accuracy, ts });
+  state.compassHistory = state.compassHistory.filter(item => ts - item.ts <= COMPASS_MAX_AGE_MS);
 }
 async function requestCompass(){
   const DOE = window.DeviceOrientationEvent;
@@ -1460,17 +1561,40 @@ async function requestCompass(){
 el('enableCompass').addEventListener('click', requestCompass);
 
 /* ---------------- Quelle wählen (mit Hysterese) ---------------- */
-function pickHeading(){
-  const hasGps = state.gpsHeading!=null;
-  const spd = state.gpsSpeed;
-  if(state.source==='gps'){
-    if(hasGps && (spd==null || spd>GPS_SWITCH_OFF)) return {v:state.gpsHeading, s:'gps'};
-  }else{
-    if(hasGps && spd!=null && spd>GPS_SWITCH_ON) return {v:state.gpsHeading, s:'gps'};
+function getTrustedGpsHeading(now = Date.now()){
+  const headingFresh = state.gpsHeading!=null && (now - state.gpsHeadingTs) <= GPS_HEADING_MAX_AGE_MS;
+  const courseFresh = state.gpsCourse!=null && (now - state.gpsCourseTs) <= GPS_COURSE_MAX_AGE_MS;
+  const speed = state.gpsSpeed;
+  const courseSpeed = state.gpsCourseSpeed;
+  if(state.source === 'gps'){
+    if(headingFresh && speed!=null && speed >= GPS_SWITCH_OFF) return { v:state.gpsHeading, detail:'coords.heading' };
+    if(courseFresh && courseSpeed!=null && courseSpeed >= GPS_SWITCH_OFF) return { v:state.gpsCourse, detail:'derived-course' };
+    return null;
   }
-  if(state.compassHeading!=null) return {v:state.compassHeading, s:'compass'};
-  if(hasGps) return {v:state.gpsHeading, s:'gps'};
-  return {v:null, s:'none'};
+  if(headingFresh && speed!=null && speed >= GPS_SWITCH_ON) return { v:state.gpsHeading, detail:'coords.heading' };
+  if(courseFresh && courseSpeed!=null && courseSpeed >= GPS_SWITCH_ON) return { v:state.gpsCourse, detail:'derived-course' };
+  return null;
+}
+
+function getTrustedCompassHeading(now = Date.now()){
+  if(state.compassHeading==null) return null;
+  if((now - state.compassTs) > COMPASS_MAX_AGE_MS) return null;
+  const history = state.compassHistory.filter(item => (now - item.ts) <= COMPASS_MAX_AGE_MS);
+  if(history.length < COMPASS_MIN_SAMPLES) return null;
+  const accuracyValues = history.map(item => item.accuracy).filter(v => v!=null && Number.isFinite(v));
+  const accuracy = accuracyValues.length ? Math.max(...accuracyValues) : null;
+  if(accuracy==null || accuracy > COMPASS_MAX_ACCURACY) return null;
+  const jitter = compassJitter(history);
+  if(jitter > COMPASS_MAX_JITTER) return null;
+  return { v:state.compassHeading, accuracy, jitter };
+}
+
+function pickHeading(){
+  const gps = getTrustedGpsHeading();
+  if(gps) return {v:gps.v, s:'gps', meta:gps};
+  const compass = getTrustedCompassHeading();
+  if(compass) return {v:compass.v, s:'compass', meta:compass};
+  return {v:null, s:'none', meta:null};
 }
 
 /* ---------------- Status-Anzeige ---------------- */
@@ -1534,7 +1658,7 @@ function frame(){
     state.source = pick.s;
 
     if(pick.v!=null){
-      const factor = pick.s==='compass' ? 0.15 : 0.35;
+      const factor = pick.s==='compass' ? 0.12 : 0.3;
       if(state.smoothHeading==null) state.smoothHeading = pick.v;
       state.smoothHeading = (state.smoothHeading + angleDelta(state.smoothHeading, pick.v)*factor + 360) % 360;
 
@@ -1604,15 +1728,25 @@ function frame(){
       const aligned = Math.abs(angleDelta(0, rel)) < 12;
       wrap.classList.toggle('aligned', aligned);
 
-      if(pick.s==='gps'){ setStatus('gps','GPS-Kurs'); el('navHint').textContent=''; }
-      else { setStatus('compass','Kompass'); el('navHint').textContent=''; }
+      if(pick.s==='gps'){
+        setStatus('gps','GPS-Kurs');
+        el('navHint').textContent = pick.meta && pick.meta.detail === 'derived-course'
+          ? 'Richtung aus deiner Bewegung berechnet.'
+          : '';
+      }else{
+        setStatus('compass','Kompass');
+        el('navHint').textContent = `Kompass-Fallback aktiv${pick.meta && Number.isFinite(pick.meta.accuracy) ? ` · ±${Math.round(pick.meta.accuracy)}°` : ''}.`;
+      }
     }else{
       const finalMarker = el('finalMarker');
       if(finalMarker) finalMarker.style.display = 'none';
-      setStatus('none','Richtung fehlt');
-      el('navHint').textContent = state.compassGranted
-        ? 'Losfahren, damit sich der Pfeil an der Bewegung ausrichtet.'
-        : 'Losfahren oder oben den Kompass aktivieren.';
+      setStatus('none','Richtung unklar');
+      state.smoothHeading = null;
+      if(state.compassGranted){
+        el('navHint').textContent = 'Keine sichere Richtungsquelle. Kurz fahren oder iPhone/Kompass neu ausrichten.';
+      }else{
+        el('navHint').textContent = 'Keine sichere Richtungsquelle. Kurz fahren oder den iPhone-Kompass freigeben.';
+      }
       if(window.DeviceOrientationEvent && typeof window.DeviceOrientationEvent.requestPermission==='function'
          && !state.compassGranted){
         el('enableCompass').classList.remove('hide');
