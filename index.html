@@ -479,6 +479,17 @@
                     font-size="11" font-weight="700" fill="var(--accent)"
                     font-family="ui-monospace,'SF Mono',Menlo,'Liberation Mono',monospace">—</text>
             </g>
+            <!-- Endziel als leiser Sekundärmarker bei aktivem Zwischenziel -->
+            <g id="finalMarker" opacity="0.92" style="display:none">
+              <circle id="finalMarkerHalo" cx="100" cy="30" r="9" fill="#4DA3FF" opacity="0.18"/>
+              <circle id="finalMarkerDot" cx="100" cy="30" r="4.2" fill="#4DA3FF"/>
+              <g id="finalLabel">
+                <rect id="finalLabelRect" x="108" y="20" width="44" height="18" rx="5" fill="var(--surface)" stroke="rgba(77,163,255,.34)"/>
+                <text id="finalLabelText" x="130" y="29" text-anchor="middle" dominant-baseline="middle"
+                      font-size="10" font-weight="700" fill="#4DA3FF"
+                      font-family="ui-monospace,'SF Mono',Menlo,'Liberation Mono',monospace">4 km</text>
+              </g>
+            </g>
           </svg>
         </div>
       </div>
@@ -537,7 +548,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = '2026.07.07.6';
+const APP_VERSION = '2026.07.07.7';
 
 /* ---------------- Geo-Mathe ---------------- */
 const R = 6371000; // m
@@ -1270,6 +1281,13 @@ function setStatus(kind, text){
 /* ---------------- Render-Loop ---------------- */
 const reduceMotion = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
 
+function radarPointFromDistanceAndAngle(dist, relAngle, maxDist){
+  const clamped = Math.max(0, Math.min(1, dist / Math.max(1, maxDist)));
+  const r = 14 + clamped * 80;
+  const a = toRad(relAngle - 90);
+  return { x: 100 + Math.cos(a) * r, y: 100 + Math.sin(a) * r, r };
+}
+
 function fmtDistance(m){
   if(m < 1000) return { val:String(Math.round(m)), unit:'m' };
   if(m < 10000) return { val:(m/1000).toFixed(2), unit:'km' };
@@ -1299,6 +1317,39 @@ function frame(){
       const w = Math.ceil(t.getComputedTextLength()) + 14;
       el('blipLabelRect').setAttribute('width', w);
       t.setAttribute('x', 106 + w/2);
+    }
+
+    const finalMarker = el('finalMarker');
+    const finalDest = state.intermediateDest && state.finalDest ? state.finalDest : null;
+    if(finalDest){
+      const finalDist = distance(pos.lat,pos.lon,finalDest.lat,finalDest.lon);
+      const finalBearing = bearing(pos.lat,pos.lon,finalDest.lat,finalDest.lon);
+      const previewHeading = state.smoothHeading ?? state.gpsHeading ?? state.compassHeading ?? 0;
+      const finalRel = (finalBearing - previewHeading + 360) % 360;
+      const maxRadarDist = Math.max(dist * 1.35, finalDist, 1200);
+      const p2 = radarPointFromDistanceAndAngle(finalDist, finalRel, maxRadarDist);
+      finalMarker.style.display = '';
+      el('finalMarkerHalo').setAttribute('cx', p2.x.toFixed(1));
+      el('finalMarkerHalo').setAttribute('cy', p2.y.toFixed(1));
+      el('finalMarkerDot').setAttribute('cx', p2.x.toFixed(1));
+      el('finalMarkerDot').setAttribute('cy', p2.y.toFixed(1));
+      const label = el('finalLabel');
+      const finalText = el('finalLabelText');
+      const shortFinal = formatMetersShort(finalDist);
+      finalText.textContent = shortFinal;
+      const finalW = Math.max(34, Math.ceil(finalText.getComputedTextLength()) + 12);
+      el('finalLabelRect').setAttribute('width', finalW);
+      finalText.setAttribute('x', finalW/2);
+      finalText.setAttribute('y', 9);
+      el('finalLabelRect').setAttribute('x', 0);
+      el('finalLabelRect').setAttribute('y', 0);
+      let lx = p2.x + 8;
+      if(p2.x > 138) lx = p2.x - finalW - 8;
+      let ly = p2.y - 9;
+      if(ly < 4) ly = p2.y + 8;
+      label.setAttribute('transform', `translate(${lx.toFixed(1)} ${ly.toFixed(1)})`);
+    }else if(finalMarker){
+      finalMarker.style.display = 'none';
     }
 
     const pick = pickHeading();
