@@ -379,6 +379,21 @@
 @media (prefers-reduced-motion:reduce){
     .spinner{animation:none;}
   }
+
+  .target-line{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:8px;min-height:18px;}
+  .target-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 9px;border-radius:999px;border:1px solid var(--hairline);font-size:10px;letter-spacing:.12em;text-transform:uppercase;background:color-mix(in srgb, var(--surface) 92%, transparent);}
+  .target-pill::before{content:'';width:8px;height:8px;border-radius:50%;display:inline-block;background:currentColor;}
+  .target-pill-final{color:#4DA3FF;border-color:rgba(77,163,255,.26);}
+  .target-pill-intermediate{color:var(--accent);border-color:color-mix(in srgb, var(--accent) 35%, var(--hairline));}
+  .target-name{font-size:11px;letter-spacing:.04em;color:var(--muted);}
+  #routeChip{display:none !important;}
+  .crossing-panel.compact #crossingList{display:none;}
+  .crossing-head-actions{display:flex;align-items:center;gap:8px;}
+  #crossingSummary{flex:1 1 auto;}
+  #toggleCrossings{min-width:88px;}
+  #finalLabel{display:none;}
+  .crossing-badge{margin-top:0;}
+
 </style>
 </head>
 <body>
@@ -455,6 +470,7 @@
       </button>
       <div class="eyebrow">Ziel</div>
       <div id="destName" class="dest-name">—</div>
+      <div id="targetLine" class="target-line"></div>
     </div>
 
     <div class="compass">
@@ -518,10 +534,13 @@
         <span id="barrierInfoBtnText">Barrieren-Check</span>
       </button>
       <div id="routeChip" class="route-chip"></div>
-      <div id="crossingPanel" class="crossing-panel">
+      <div id="crossingPanel" class="crossing-panel compact">
         <div class="crossing-head">
-          <span class="crossing-title">Querungen als Zwischenziel</span>
-          <button id="clearIntermediate" class="btn-ghost" style="padding:6px 10px;font-size:10.5px;">Zurück</button>
+          <span id="crossingSummary" class="crossing-title">Querungen als Zwischenziel</span>
+          <div class="crossing-head-actions">
+            <button id="toggleCrossings" class="btn-ghost" style="padding:6px 10px;font-size:10.5px;">Anzeigen</button>
+            <button id="clearIntermediate" class="btn-ghost" style="padding:6px 10px;font-size:10.5px;">Zurück</button>
+          </div>
         </div>
         <div id="crossingList" class="crossing-list"></div>
       </div>
@@ -568,7 +587,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = '2026.07.07.11';
+const APP_VERSION = '2026.07.07.12';
 
 /* ---------------- Geo-Mathe ---------------- */
 const R = 6371000; // m
@@ -768,25 +787,30 @@ function crossingTypeLabel(type){
 function formatMetersShort(m){ return m < 1000 ? `${Math.round(m)} m` : `${(m/1000).toFixed(1)} km`; }
 function setRouteChip(){
   const chip = el('routeChip');
+  const line = el('targetLine');
+  if(chip){ chip.textContent = ''; chip.classList.remove('show'); }
+  if(!line) return;
   if(state.intermediateDest && state.finalDest){
-    chip.textContent = `Zwischenziel aktiv · danach ${state.finalDest.name}`;
-    chip.classList.add('show');
+    line.innerHTML = `<span class="target-pill target-pill-intermediate">Zwischenziel</span><span class="target-name">${escHtml(state.intermediateDest.name)}</span><span class="target-pill target-pill-final">Endziel</span><span class="target-name">${escHtml(state.finalDest.name)}</span>`;
   }else if(state.finalDest){
-    chip.textContent = `Endziel · ${state.finalDest.name}`;
-    chip.classList.add('show');
+    line.innerHTML = `<span class="target-pill target-pill-final">Ziel</span><span class="target-name">${escHtml(state.finalDest.name)}</span>`;
   }else{
-    chip.textContent = '';
-    chip.classList.remove('show');
+    line.innerHTML = '';
   }
 }
 function renderCrossingSuggestions(){
   const panel = el('crossingPanel');
   const list = el('crossingList');
+  const summary = el('crossingSummary');
+  const toggle = el('toggleCrossings');
   const legend = el('crossingLegend');
   const legendText = el('crossingLegendText');
   list.innerHTML = '';
   if(!state.crossingSuggestions.length){
     panel.classList.remove('show');
+    panel.classList.add('compact');
+    if(summary) summary.textContent = 'Querungen als Zwischenziel';
+    if(toggle) toggle.textContent = 'Anzeigen';
     legend.hidden = true;
     legend.classList.remove('foot-only');
     return;
@@ -802,14 +826,23 @@ function renderCrossingSuggestions(){
       state.intermediateDest = { lat:item.lat, lon:item.lon, name:item.name || crossingTypeLabel(item.type) };
       state.selectedCrossingKey = crossingKey(item);
       state.dest = { ...state.intermediateDest };
-      el('destName').textContent = `${state.intermediateDest.name} · Zwischenziel`;
       state.crossingLegendMode = item.accessMode || 'rideable';
+      state.crossingExpanded = false;
       setRouteChip();
+      el('destName').textContent = state.intermediateDest.name;
       renderCrossingSuggestions();
     });
     list.appendChild(btn);
   });
-  legend.hidden = false;
+  if(summary){
+    summary.textContent = state.selectedCrossingKey
+      ? `${state.crossingSuggestions.length} Querungen · Zwischenziel gewählt`
+      : `${state.crossingSuggestions.length} Querungen als Zwischenziel`;
+  }
+  if(toggle) toggle.textContent = state.crossingExpanded ? 'Einklappen' : 'Anzeigen';
+  panel.classList.add('show');
+  panel.classList.toggle('compact', !state.crossingExpanded);
+  legend.hidden = !state.crossingExpanded;
   if(state.crossingLegendMode === 'foot_only' || (!state.selectedCrossingKey && hasFootOnly)){
     legend.classList.add('foot-only');
     legendText.textContent = 'Gelb = nur schiebend / zu Fuß nutzbar';
@@ -817,7 +850,6 @@ function renderCrossingSuggestions(){
     legend.classList.remove('foot-only');
     legendText.textContent = 'Querungen sind für Radfahrt freigegeben';
   }
-  panel.classList.add('show');
 }
 function syncBarrierUI(){
   const btn = el('barrierInfoBtn');
@@ -1116,6 +1148,11 @@ el('changeDest').addEventListener('click', ()=>{
   renderFavorites();
 });
 
+el('toggleCrossings').addEventListener('click', ()=>{
+  if(!state.crossingSuggestions.length) return;
+  state.crossingExpanded = !state.crossingExpanded;
+  renderCrossingSuggestions();
+});
 el('barrierInfoBtn').addEventListener('click', openBarrierModal);
 el('barrierModalClose').addEventListener('click', closeBarrierModal);
 el('barrierModal').addEventListener('click', (e)=>{ if(e.target === el('barrierModal')) closeBarrierModal(); });
@@ -1359,6 +1396,10 @@ function radarPointFromDistanceAndAngle(dist, relAngle, maxDist, opts = {}){
   const r = minR + clamped * Math.max(0, (maxR - minR));
   const a = toRad(relAngle - 90);
   return { x: 100 + Math.cos(a) * r, y: 100 + Math.sin(a) * r, r };
+}
+
+function escHtml(s){
+  return String(s || '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 }
 
 function fmtDistance(m){
