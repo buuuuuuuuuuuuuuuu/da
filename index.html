@@ -365,7 +365,24 @@
   .btn-ghost.hide{display:none;}
   .btn-ghost[disabled]{opacity:.6;pointer-events:none;}
 
-  @media (prefers-reduced-motion:reduce){
+    .barrier-info-btn{width:100%;display:flex;align-items:center;gap:10px;justify-content:center;
+    min-height:48px;padding:12px 14px;border-radius:16px;border:1px solid var(--hairline);
+    background:color-mix(in srgb, var(--surface) 92%, transparent);color:var(--warning);
+    font-size:11px;letter-spacing:.12em;text-transform:uppercase;}
+  .barrier-info-btn .dot{width:10px;height:10px;border-radius:50%;background:currentColor;display:inline-block;flex:none;}
+  .barrier-info-btn.hide{display:none;}
+  .modal-backdrop{position:fixed;inset:0;z-index:60;background:rgba(10,12,10,.38);display:none;align-items:flex-end;justify-content:center;padding:18px;}
+  .modal-backdrop.show{display:flex;}
+  .modal-card{width:min(100%,560px);max-height:min(78dvh,700px);overflow:auto;background:var(--surface);
+    border:1px solid var(--hairline);border-radius:24px;box-shadow:0 18px 48px rgba(0,0,0,.18);padding:16px 16px calc(16px + var(--safe-b));}
+  .modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;}
+  .modal-head h2{font-size:18px;letter-spacing:.04em;text-transform:uppercase;color:var(--fg);}
+  .modal-body{display:grid;gap:12px;}
+  .modal-summary{font-size:13px;line-height:1.45;color:var(--fg);}
+  .modal-debug{padding:12px 14px;border-radius:14px;background:var(--surface-2);border:1px solid var(--hairline);
+    color:var(--muted);font-size:11px;line-height:1.5;white-space:pre-wrap;word-break:break-word;}
+  body.modal-open{overflow:hidden;}
+@media (prefers-reduced-motion:reduce){
     .spinner{animation:none;}
   }
 </style>
@@ -501,15 +518,10 @@
         <span id="statusDot" class="dot none"></span>
         <span id="statusText">Suche Signal …</span>
       </div>
-      <div id="barrierAlert" class="alert hide">
+      <button id="barrierInfoBtn" class="barrier-info-btn hide" type="button" aria-haspopup="dialog">
         <span class="dot"></span>
-        <span id="barrierText"></span>
-      </div>
-      <div id="barrierError" class="alert alert-warn hide">
-        <span class="dot"></span>
-        <span id="barrierErrorText">Barrieren-Check fehlgeschlagen.</span>
-      </div>
-      <div id="barrierDebug" class="debug-strip hide"></div>
+        <span id="barrierInfoBtnText">Barrieren-Check</span>
+      </button>
       <div id="routeChip" class="route-chip"></div>
       <div id="crossingPanel" class="crossing-panel">
         <div class="crossing-head">
@@ -533,6 +545,19 @@
   </section>
 
   <!-- ============ SAVE SHEET ============ -->
+  <div id="barrierModal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="barrierModalTitle">
+      <div class="modal-head">
+        <h2 id="barrierModalTitle">Barrieren-Check</h2>
+        <button id="barrierModalClose" class="btn-ghost" type="button" style="padding:6px 10px;font-size:10.5px;">Schließen</button>
+      </div>
+      <div class="modal-body">
+        <p id="barrierModalSummary" class="modal-summary">Noch keine Infos vorhanden.</p>
+        <div id="barrierModalDebug" class="modal-debug hide"></div>
+      </div>
+    </div>
+  </div>
+
   <div id="saveSheet">
     <div class="sheet">
       <h2>Als Favorit speichern</h2>
@@ -548,7 +573,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = '2026.07.07.9';
+const APP_VERSION = '2026.07.07.10';
 
 /* ---------------- Geo-Mathe ---------------- */
 const R = 6371000; // m
@@ -799,19 +824,59 @@ function renderCrossingSuggestions(){
   }
   panel.classList.add('show');
 }
+function syncBarrierUI(){
+  const btn = el('barrierInfoBtn');
+  const btnText = el('barrierInfoBtnText');
+  const modal = el('barrierModal');
+  const summary = el('barrierModalSummary');
+  const debug = el('barrierModalDebug');
+  const hasInfo = !!(state.barrierSummary || state.barrierDebugText);
+  if(btn){
+    btn.classList.toggle('hide', !hasInfo);
+    btn.style.color = state.barrierIsError ? 'var(--warning)' : 'var(--accent)';
+  }
+  if(btnText) btnText.textContent = state.barrierSummary || 'Barrieren-Check';
+  if(summary) summary.textContent = state.barrierSummary || 'Noch keine Infos vorhanden.';
+  if(debug){
+    if(state.barrierDebugText){
+      debug.textContent = state.barrierDebugText;
+      debug.classList.remove('hide');
+    }else{
+      debug.textContent = '';
+      debug.classList.add('hide');
+    }
+  }
+  if(modal) modal.setAttribute('aria-hidden', modal.classList.contains('show') ? 'false' : 'true');
+}
+function openBarrierModal(){
+  const modal = el('barrierModal');
+  if(!modal) return;
+  syncBarrierUI();
+  modal.classList.add('show');
+  modal.setAttribute('aria-hidden','false');
+  document.body.classList.add('modal-open');
+}
+function closeBarrierModal(){
+  const modal = el('barrierModal');
+  if(!modal) return;
+  modal.classList.remove('show');
+  modal.setAttribute('aria-hidden','true');
+  document.body.classList.remove('modal-open');
+}
 function setBarrierError(msg){
-  const box = el('barrierError');
-  el('barrierErrorText').textContent = msg || 'Barrieren-Check fehlgeschlagen.';
-  box.classList.remove('hide');
+  state.barrierIsError = true;
+  state.barrierSummary = msg || 'Barrieren-Check fehlgeschlagen.';
+  syncBarrierUI();
 }
-function hideBarrierError(){ el('barrierError').classList.add('hide'); }
+function hideBarrierError(){
+  state.barrierIsError = false;
+  if(!state.barrierSummary || /fehlgeschlagen/i.test(state.barrierSummary)) state.barrierSummary = '';
+  syncBarrierUI();
+}
 function setBarrierDebug(msg){
-  const box = el('barrierDebug');
-  if(!msg){ box.textContent = ''; box.classList.add('hide'); return; }
-  box.textContent = msg;
-  box.classList.remove('hide');
+  state.barrierDebugText = msg || '';
+  syncBarrierUI();
 }
-
 function showBarrierAlert(hitWater, hitRail){
   const box = el('barrierAlert');
   if(!hitWater && !hitRail){ box.classList.add('hide'); return; }
@@ -842,6 +907,9 @@ const state = {
   crossingSuggestions: [],
   selectedCrossingKey: null,
   crossingLegendMode: '',
+  barrierSummary: '',
+  barrierDebugText: '',
+  barrierIsError: false,
 };
 
 const GPS_SWITCH_ON  = 1.0;
@@ -1023,11 +1091,13 @@ function startNav(dest){
   state.selectedCrossingKey = null;
   state.crossingLegendMode = '';
   state.barrierChecked = false;
-  el('barrierAlert').classList.add('hide');
+  state.barrierSummary='';
   hideBarrierError();
   setBarrierDebug('');
+  syncBarrierUI();
   el('destName').textContent = dest.name;
   show('nav');
+  closeBarrierModal();
   requestCompass().finally(startGeolocation);
 }
 
@@ -1040,15 +1110,21 @@ el('changeDest').addEventListener('click', ()=>{
   state.selectedCrossingKey = null;
   state.crossingLegendMode = '';
   state.barrierChecked = false;
-  el('barrierAlert').classList.add('hide');
+  state.barrierSummary='';
   hideBarrierError();
   setBarrierDebug('');
+  syncBarrierUI();
   renderCrossingSuggestions();
   setRouteChip();
   resultsEl.innerHTML=''; note.textContent=''; qInput.value = '';
-  show('search'); qInput.focus();
+  closeBarrierModal(); show('search'); qInput.focus();
   renderFavorites();
 });
+
+el('barrierInfoBtn').addEventListener('click', openBarrierModal);
+el('barrierModalClose').addEventListener('click', closeBarrierModal);
+el('barrierModal').addEventListener('click', (e)=>{ if(e.target === el('barrierModal')) closeBarrierModal(); });
+document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') closeBarrierModal(); });
 
 el('closeNavBtn').addEventListener('click', ()=>{
   if(state.watchId!==null){ navigator.geolocation.clearWatch(state.watchId); state.watchId=null; }
@@ -1059,13 +1135,14 @@ el('closeNavBtn').addEventListener('click', ()=>{
   state.selectedCrossingKey = null;
   state.crossingLegendMode = '';
   state.barrierChecked = false;
-  el('barrierAlert').classList.add('hide');
+  state.barrierSummary='';
   hideBarrierError();
   setBarrierDebug('');
+  syncBarrierUI();
   renderCrossingSuggestions();
   setRouteChip();
   resultsEl.innerHTML=''; note.textContent=''; qInput.value = '';
-  show('search'); qInput.focus();
+  closeBarrierModal(); show('search'); qInput.focus();
   renderFavorites();
 });
 
@@ -1367,23 +1444,19 @@ function frame(){
           const finalBearing = bearing(pos.lat,pos.lon,finalDest.lat,finalDest.lon);
           const deltaFromActive = angleDelta(brg, finalBearing);
           const relativeDist = Math.max(0, finalDist - dist);
-          const radarScale = Math.max(relativeDist, dist * 1.2, 600);
-          const p2 = radarPointFromDistanceAndAngle(relativeDist, deltaFromActive, radarScale, { minR: 60, maxR: 94 });
+          const p2 = radarPointFromDistanceAndAngle(relativeDist, deltaFromActive, Math.max(relativeDist, dist * 1.2, 600), { minR: 58, maxR: 88 });
           finalMarker.style.display = '';
           el('finalMarkerHalo').setAttribute('cx', p2.x.toFixed(1));
           el('finalMarkerHalo').setAttribute('cy', p2.y.toFixed(1));
           el('finalMarkerDot').setAttribute('cx', p2.x.toFixed(1));
           el('finalMarkerDot').setAttribute('cy', p2.y.toFixed(1));
-
           const finalText = el('finalLabelText');
           const finalRect = el('finalLabelRect');
-          const shortFinal = formatMetersShort(finalDist);
-          finalText.textContent = shortFinal;
+          finalText.textContent = formatMetersShort(finalDist);
           const finalW = Math.max(34, Math.ceil(finalText.getComputedTextLength()) + 12);
-          let lx = p2.x + 8;
-          if(p2.x > 138) lx = p2.x - finalW - 8;
-          let ly = p2.y - 9;
-          if(ly < 4) ly = p2.y + 8;
+          const anchorLeft = p2.x > 132;
+          const lx = anchorLeft ? (p2.x - finalW - 8) : (p2.x + 8);
+          const ly = Math.max(4, p2.y - 9);
           finalRect.setAttribute('x', lx.toFixed(1));
           finalRect.setAttribute('y', ly.toFixed(1));
           finalRect.setAttribute('width', finalW);
