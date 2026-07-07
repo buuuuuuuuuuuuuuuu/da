@@ -394,6 +394,49 @@
   #finalLabel{display:none;}
   .crossing-badge{margin-top:0;}
 
+
+  .status-inline{
+    display:inline-flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    gap:8px !important;
+    width:auto !important;
+    height:auto !important;
+    min-height:0 !important;
+    padding:0 !important;
+    margin:2px auto 0 !important;
+    border:0 !important;
+    border-radius:0 !important;
+    background:none !important;
+    box-shadow:none !important;
+    color:var(--muted) !important;
+    font-size:10.5px !important;
+    letter-spacing:.14em !important;
+    text-transform:uppercase !important;
+  }
+  .status-inline::before,.status-inline::after{display:none !important;content:none !important;}
+  #statusDot{
+    width:8px !important;
+    height:8px !important;
+    min-width:8px !important;
+    min-height:8px !important;
+    border-radius:50% !important;
+    display:inline-block !important;
+    flex:0 0 8px !important;
+    transform:none !important;
+    box-shadow:none !important;
+  }
+  #statusText{
+    display:inline !important;
+    font-size:10.5px !important;
+    line-height:1.1 !important;
+    letter-spacing:.14em !important;
+    text-transform:uppercase !important;
+  }
+  .intermediate-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+  .intermediate-actions.hide{display:none;}
+  .intermediate-actions .btn-ghost{min-height:42px;padding:0 14px;}
+
 </style>
 </head>
 <body>
@@ -533,6 +576,10 @@
         <span class="dot"></span>
         <span id="barrierInfoBtnText">Barrieren-Check</span>
       </button>
+      <div id="intermediateActions" class="intermediate-actions hide">
+        <button id="intermediateDone" class="btn-ghost accent" type="button">Zwischenziel erreicht</button>
+        <button id="intermediateSkip" class="btn-ghost" type="button">Überspringen</button>
+      </div>
       <div id="routeChip" class="route-chip"></div>
       <div id="crossingPanel" class="crossing-panel compact">
         <div class="crossing-head">
@@ -587,7 +634,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = '2026.07.07.12';
+const APP_VERSION = '2026.07.07.13';
 
 /* ---------------- Geo-Mathe ---------------- */
 const R = 6371000; // m
@@ -785,6 +832,26 @@ function crossingTypeLabel(type){
   return 'Brücke';
 }
 function formatMetersShort(m){ return m < 1000 ? `${Math.round(m)} m` : `${(m/1000).toFixed(1)} km`; }
+function updateIntermediateActions(dist){
+  const box = el('intermediateActions');
+  if(!box) return;
+  const show = !!(state.intermediateDest && Number.isFinite(dist) && dist <= 50);
+  box.classList.toggle('hide', !show);
+}
+function activateFinalDestination(message=''){
+  if(!state.finalDest) return;
+  state.intermediateDest = null;
+  state.selectedCrossingKey = null;
+  state.crossingLegendMode = '';
+  state.crossingExpanded = false;
+  state.dest = { ...state.finalDest };
+  el('destName').textContent = state.finalDest.name;
+  setRouteChip();
+  renderCrossingSuggestions();
+  updateIntermediateActions(null);
+  if(message) el('navHint').textContent = message;
+}
+
 function setRouteChip(){
   const chip = el('routeChip');
   const line = el('targetLine');
@@ -828,9 +895,11 @@ function renderCrossingSuggestions(){
       state.dest = { ...state.intermediateDest };
       state.crossingLegendMode = item.accessMode || 'rideable';
       state.crossingExpanded = false;
+      el('navHint').textContent = '';
       setRouteChip();
       el('destName').textContent = state.intermediateDest.name;
       renderCrossingSuggestions();
+      updateIntermediateActions(Number.POSITIVE_INFINITY);
     });
     list.appendChild(btn);
   });
@@ -1119,6 +1188,7 @@ function startNav(dest){
   state.crossingLegendMode = '';
   state.barrierChecked = false;
   state.barrierSummary='';
+  updateIntermediateActions(null);
   hideBarrierError();
   setBarrierDebug('');
   syncBarrierUI();
@@ -1138,6 +1208,7 @@ el('changeDest').addEventListener('click', ()=>{
   state.crossingLegendMode = '';
   state.barrierChecked = false;
   state.barrierSummary='';
+  updateIntermediateActions(null);
   hideBarrierError();
   setBarrierDebug('');
   syncBarrierUI();
@@ -1153,6 +1224,9 @@ el('toggleCrossings').addEventListener('click', ()=>{
   state.crossingExpanded = !state.crossingExpanded;
   renderCrossingSuggestions();
 });
+el('clearIntermediate').addEventListener('click', ()=>{ activateFinalDestination('Zwischenziel entfernt · weiter zum Endziel.'); });
+el('intermediateDone').addEventListener('click', ()=>{ activateFinalDestination('Zwischenziel erreicht · weiter zum Endziel.'); });
+el('intermediateSkip').addEventListener('click', ()=>{ activateFinalDestination('Zwischenziel übersprungen · weiter zum Endziel.'); });
 el('barrierInfoBtn').addEventListener('click', openBarrierModal);
 el('barrierModalClose').addEventListener('click', closeBarrierModal);
 el('barrierModal').addEventListener('click', (e)=>{ if(e.target === el('barrierModal')) closeBarrierModal(); });
@@ -1168,6 +1242,7 @@ el('closeNavBtn').addEventListener('click', ()=>{
   state.crossingLegendMode = '';
   state.barrierChecked = false;
   state.barrierSummary='';
+  updateIntermediateActions(null);
   hideBarrierError();
   setBarrierDebug('');
   syncBarrierUI();
@@ -1413,6 +1488,11 @@ function frame(){
 
   if(dest && pos){
     const dist = distance(pos.lat,pos.lon,dest.lat,dest.lon);
+    updateIntermediateActions(state.intermediateDest ? dist : null);
+    if(state.intermediateDest && dist <= 35){
+      activateFinalDestination('Zwischenziel erreicht · weiter zum Endziel.');
+      return;
+    }
     if(!state.barrierChecked){
       state.barrierChecked = true;
       // Nur bei realistischen Distanzen prüfen — riesige Bounding-Boxen
