@@ -548,7 +548,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = '2026.07.07.8';
+const APP_VERSION = '2026.07.07.9';
 
 /* ---------------- Geo-Mathe ---------------- */
 const R = 6371000; // m
@@ -1281,9 +1281,10 @@ function setStatus(kind, text){
 /* ---------------- Render-Loop ---------------- */
 const reduceMotion = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
 
-function radarPointFromDistanceAndAngle(dist, relAngle, maxDist){
+function radarPointFromDistanceAndAngle(dist, relAngle, maxDist, opts = {}){
+  const { minR = 14, maxR = 94 } = opts;
   const clamped = Math.max(0, Math.min(1, dist / Math.max(1, maxDist)));
-  const r = 14 + clamped * 80;
+  const r = minR + clamped * Math.max(0, (maxR - minR));
   const a = toRad(relAngle - 90);
   return { x: 100 + Math.cos(a) * r, y: 100 + Math.sin(a) * r, r };
 }
@@ -1331,9 +1332,32 @@ function frame(){
       const step = reduceMotion ? 1 : 0.22;
       state.displayAngle = (state.displayAngle + angleDelta(state.displayAngle, rel)*step + 360) % 360;
 
+      const activeMarker = radarPointFromDistanceAndAngle(dist, 0, Math.max(dist, 1), state.intermediateDest ? { minR: 34, maxR: 60 } : { minR: 94, maxR: 94 });
+      const focus = el('needleWrap').querySelector('.radar-focus');
+      if(focus){
+        const tipY = activeMarker.y.toFixed(1);
+        const tipX = activeMarker.x.toFixed(1);
+        focus.querySelector('path').setAttribute('d', `M100 100 L77 ${tipY} L${tipX} ${tipY} Z`);
+        focus.querySelectorAll('circle')[0].setAttribute('cx', tipX);
+        focus.querySelectorAll('circle')[0].setAttribute('cy', tipY);
+        focus.querySelectorAll('circle')[1].setAttribute('cx', tipX);
+        focus.querySelectorAll('circle')[1].setAttribute('cy', tipY);
+      }
+      const blipRect = el('blipLabelRect');
+      const blipText = el('blipLabelText');
+      const blipW = Number(blipRect.getAttribute('width') || 52);
+      let blipX = activeMarker.x + 6;
+      if(activeMarker.x > 138) blipX = activeMarker.x - blipW - 6;
+      let blipY = activeMarker.y - 10;
+      if(blipY < -2) blipY = activeMarker.y + 6;
+      blipRect.setAttribute('x', blipX.toFixed(1));
+      blipRect.setAttribute('y', blipY.toFixed(1));
+      blipText.setAttribute('x', (blipX + blipW/2).toFixed(1));
+      blipText.setAttribute('y', (blipY + 10).toFixed(1));
+
       const wrap = el('needleWrap');
       wrap.style.transform = `rotate(${state.displayAngle}deg)`;
-      el('blipLabel').setAttribute('transform', `rotate(${-state.displayAngle} 100 6)`);
+      el('blipLabel').setAttribute('transform', `rotate(${-state.displayAngle} ${(blipX + blipW/2).toFixed(1)} ${(blipY + 10).toFixed(1)})`);
 
       const finalMarker = el('finalMarker');
       const finalDest = state.intermediateDest && state.finalDest ? state.finalDest : null;
@@ -1342,8 +1366,9 @@ function frame(){
           const finalDist = distance(pos.lat,pos.lon,finalDest.lat,finalDest.lon);
           const finalBearing = bearing(pos.lat,pos.lon,finalDest.lat,finalDest.lon);
           const deltaFromActive = angleDelta(brg, finalBearing);
-          const maxRadarDist = Math.max(dist * 1.35, finalDist, 1200);
-          const p2 = radarPointFromDistanceAndAngle(finalDist, deltaFromActive, maxRadarDist);
+          const relativeDist = Math.max(0, finalDist - dist);
+          const radarScale = Math.max(relativeDist, dist * 1.2, 600);
+          const p2 = radarPointFromDistanceAndAngle(relativeDist, deltaFromActive, radarScale, { minR: 60, maxR: 94 });
           finalMarker.style.display = '';
           el('finalMarkerHalo').setAttribute('cx', p2.x.toFixed(1));
           el('finalMarkerHalo').setAttribute('cy', p2.y.toFixed(1));
