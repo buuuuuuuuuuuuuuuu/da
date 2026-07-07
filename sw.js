@@ -1,66 +1,44 @@
-// Service Worker für "da"
-// Cache-Name enthält die Version — bei jedem Update wird der alte Cache verworfen.
-const VERSION = '2026.07.04.8';
-const CACHE = 'da-cache-' + VERSION;
+// da – Service Worker
+// Bewusst minimal gehalten: Die App nutzt einen eigenen
+// Cache-Buster-Reload (?_=timestamp) und einen periodischen
+// version.json-Check, um Nutzer aktiv auf Updates hinzuweisen.
+// Ein aggressiv cachender Service Worker würde dem widersprechen
+// (Nutzer könnte trotz "Update"-Banner eine alte Fassung offline
+// aus dem SW-Cache bekommen). Daher: reines Passthrough, nur zur
+// Erfüllung der PWA-Installierbarkeits-Kriterien (Safari/iOS
+// verlangt einen registrierten Service Worker für "Zum Home-
+// Bildschirm hinzufügen" in manchen Konstellationen).
 
-// Assets, die sich selten ändern und offline verfügbar sein sollen.
-const ASSETS = [
-  './apple-touch-icon.png',
-  './favicon.png',
-  './icon-192.png',
-  './icon-512.png',
-  './manifest.json',
-];
+const CACHE = 'da-shell-v1';
+const SHELL = ['./', './index.html', './manifest.json'];
 
-self.addEventListener('install', event => {
+self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting())
+    caches.open(CACHE).then((cache) => cache.addAll(SHELL)).catch(() => {})
   );
+  self.skipWaiting();
 });
 
-self.addEventListener('activate', event => {
+self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
+    )
   );
+  self.clients.claim();
 });
 
-self.addEventListener('fetch', event => {
-  const req = event.request;
-  if (req.method !== 'GET') return;
-
-  const url = new URL(req.url);
-
-  // version.json: NIEMALS cachen — muss immer frisch vom Netz kommen,
-  // sonst wächst der Cache mit jedem ?t=…-Check unbegrenzt.
-  if (url.pathname.endsWith('version.json')) {
-    event.respondWith(fetch(req));
-    return;
-  }
-
-  const isCore = url.pathname.endsWith('/') || url.pathname.endsWith('index.html');
-
-  if (isCore) {
-    // Network-First: neue Version immer bevorzugen, Cache nur als Offline-Fallback.
-    // Nur query-freie URLs cachen (Cache-Buster wie ?_=… nicht ansammeln).
-    event.respondWith(
-      fetch(req).then(res => {
-        if (!url.search) {
-          const copy = res.clone();
-          caches.open(CACHE).then(c => c.put(req, copy));
-        }
-        return res;
-      }).catch(() => caches.match(req, { ignoreSearch: true }))
-    );
-  } else {
-    // Cache-First für statische Assets (Icons etc.).
-    event.respondWith(
-      caches.match(req).then(hit => hit || fetch(req).then(res => {
+// Network-first: immer zuerst frisch vom Netz holen (passend zum
+// Cache-Buster-Konzept der App). Cache dient nur als Offline-Fallback.
+self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return;
+  event.respondWith(
+    fetch(event.request)
+      .then((res) => {
         const copy = res.clone();
-        caches.open(CACHE).then(c => c.put(req, copy));
+        caches.open(CACHE).then((cache) => cache.put(event.request, copy)).catch(() => {});
         return res;
-      }))
-    );
-  }
+      })
+      .catch(() => caches.match(event.request))
+  );
 });
