@@ -31,7 +31,7 @@
     --safe-b:env(safe-area-inset-bottom);
   }
   @media (prefers-color-scheme: light){
-    :root:not([data-theme]){
+    :root{
       --bg:#EFE9D8;
       --surface:#E6DFC9;
       --surface-2:#DCD4BA;
@@ -45,34 +45,6 @@
       --warn:#8A5A00;
       --glow:rgba(43,33,24,.22);
     }
-  }
-  :root[data-theme="light"]{
-    --bg:#EFE9D8;
-    --surface:#E6DFC9;
-    --surface-2:#DCD4BA;
-    --fg:#2B2118;
-    --accent:#2B2118;
-    --gps:#3E6B4F;
-    --muted:#A79B7E;
-    --muted-2:#D6CDAF;
-    --hairline:rgba(43,33,24,.16);
-    --danger:#B3261E;
-    --warn:#8A5A00;
-    --glow:rgba(43,33,24,.22);
-  }
-  :root[data-theme="dark"]{
-    --bg:#04120A;
-    --surface:#0A1F14;
-    --surface-2:#123322;
-    --fg:#CFFFE6;
-    --accent:#6BFFB0;
-    --gps:#4ADE80;
-    --muted:#3E6E55;
-    --muted-2:#1E3E2C;
-    --hairline:rgba(107,255,176,.16);
-    --danger:#FF6B6B;
-    --warn:#FFB454;
-    --glow:rgba(107,255,176,.4);
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{height:100%;margin:0;}
@@ -109,52 +81,10 @@
   body.has-banner #search{padding-top:calc(var(--safe-t) + 62px);transition:padding-top .25s ease;}
   body.has-banner #nav{padding-top:76px;transition:padding-top .25s ease;}
 
-  #themeToggle{
-    position:fixed;top:calc(var(--safe-t) + 10px);left:14px;
-    z-index:20;width:36px;height:36px;border-radius:50%;
-    display:flex;align-items:center;justify-content:center;
-    background:color-mix(in srgb, var(--surface) 88%, transparent);
-    border:1px solid var(--hairline);
-    -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
-    transition:background .2s ease,border-color .2s ease;
-  }
-  #themeToggle:active{transform:scale(.94);}
-  #themeToggle svg{width:18px;height:18px;stroke:var(--fg);fill:none;stroke-width:1.6;}
-  #themeToggle .icon-moon{display:none;}
-  :root[data-theme="light"] #themeToggle .icon-sun{display:none;}
-  :root[data-theme="light"] #themeToggle .icon-moon{display:block;}
-  @media (prefers-color-scheme: light){
-    :root:not([data-theme]) #themeToggle .icon-sun{display:none;}
-    :root:not([data-theme]) #themeToggle .icon-moon{display:block;}
-  }
-
-  #reloadTopBtn{
-    position:fixed;top:calc(var(--safe-t) + 10px);left:58px;
-    z-index:20;width:36px;height:36px;border-radius:50%;
-    display:flex;align-items:center;justify-content:center;
-    background:color-mix(in srgb, var(--surface) 88%, transparent);
-    border:1px solid var(--hairline);
-    -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
-    transition:background .2s ease,transform .2s ease;
-  }
-  #reloadTopBtn:active{transform:scale(.94) rotate(-25deg);}
-  #reloadTopBtn svg{width:17px;height:17px;stroke:var(--fg);fill:none;stroke-width:1.8;}
-
-  .nav-top{position:relative;}
-  #closeNavBtn{
-    position:absolute;top:2px;right:2px;
-    width:32px;height:32px;border-radius:50%;
-    display:flex;align-items:center;justify-content:center;
-    background:var(--surface);border:1px solid var(--hairline);
-  }
-  #closeNavBtn:active{background:var(--surface-2);transform:scale(.94);}
-  #closeNavBtn svg{width:15px;height:15px;stroke:var(--fg);fill:none;stroke-width:2;}
-
   #versionTag{
-    position:fixed;left:0;right:0;bottom:calc(var(--safe-b) + 10px);
+    position:fixed;left:0;right:0;bottom:calc(var(--safe-b) + 6px);
     text-align:center;font-size:9.5px;letter-spacing:.08em;
     color:var(--muted);opacity:.55;pointer-events:none;z-index:5;
-    padding-top:10px;
   }
 
   /* ---------- Views ---------- */
@@ -213,16 +143,6 @@
   .fav-section{margin-top:26px;}
   .fav-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px;}
   .fav-head .eyebrow{font-family:ui-monospace,"SF Mono",Menlo,"Liberation Mono",monospace;}
-
-  .alert-warn{color:var(--warn);border-color:color-mix(in srgb, var(--warn) 24%, var(--hairline));}
-  .alert-warn .dot{background:var(--warn);}
-  .debug-strip{
-    width:100%;max-width:420px;margin:8px auto 0; padding:7px 10px;
-    border:1px dashed var(--hairline); border-radius:10px;
-    font-family:ui-monospace,"SF Mono",Menlo,"Liberation Mono",monospace;
-    font-size:10.5px; line-height:1.45; color:var(--muted);
-    text-align:left; opacity:.92; word-break:break-word;
-  }
   .fav-filters{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px;}
   .chip{
     font-family:ui-monospace,"SF Mono",Menlo,"Liberation Mono",monospace;
@@ -338,29 +258,13 @@
   }
   .alert.hide{display:none;}
   .alert .dot{background:var(--warn);}
-  .crossing-panel{display:none;margin:12px auto 0;max-width:320px;background:var(--surface);border:1px solid var(--hairline);border-radius:10px;padding:10px 10px 8px;}
-  .crossing-panel.show{display:block;}
-  .crossing-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;}
-  .crossing-title{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
-  .crossing-list{display:grid;gap:8px;}
-  .crossing-option{width:100%;display:flex;justify-content:space-between;gap:10px;align-items:flex-start;padding:10px;border-radius:8px;border:1px solid var(--hairline);background:var(--bg);text-align:left;}
-  .crossing-option.active{border-color:var(--accent);}
-  .crossing-name{font-size:13px;font-weight:700;line-height:1.35;}
-  .crossing-sub{font-size:11.5px;color:var(--muted);margin-top:3px;line-height:1.35;font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;}
-  .crossing-dist{font-size:11px;color:var(--accent);letter-spacing:.06em;white-space:nowrap;padding-top:2px;}
-  .route-chip{display:none;align-items:center;justify-content:center;gap:7px;margin-top:10px;font-size:11px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;}
-  .route-chip.show{display:inline-flex;}
-  .crossing-badge{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:6px 10px;border-radius:999px;border:1px solid var(--hairline);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);}
-  .crossing-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);}
-  .crossing-badge.foot-only .dot{background:var(--warn);}
-  .crossing-sub strong{font-weight:700;color:var(--text);font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;}
 
   .hint{color:var(--muted);font-size:12.5px;line-height:1.5;margin-top:14px;
     max-width:280px;margin-left:auto;margin-right:auto;min-height:18px;
     font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;}
 
   .nav-actions{width:100%;display:flex;gap:10px;justify-content:center;
-    padding:18px 0 calc(34px + var(--safe-b));}
+    padding:18px 0 calc(18px + var(--safe-b));}
   .btn-ghost{
     background:var(--surface);border:1px solid var(--hairline);
     border-radius:8px;padding:12px 18px;font-size:12.5px;font-weight:600;color:var(--fg);
@@ -378,23 +282,6 @@
 </style>
 </head>
 <body>
-
-  <button id="themeToggle" type="button" aria-label="Farbmodus umschalten">
-    <svg class="icon-sun" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="5"/>
-      <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
-    </svg>
-    <svg class="icon-moon" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-    </svg>
-  </button>
-
-  <button id="reloadTopBtn" type="button" aria-label="App neu laden">
-    <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M21 12a9 9 0 1 1-2.64-6.36"/>
-      <polyline points="21 3 21 9 15 9"/>
-    </svg>
-  </button>
 
   <div id="updateBanner">
     <span>Neue Version verfügbar</span>
@@ -443,12 +330,6 @@
   <!-- ============ NAV VIEW ============ -->
   <section id="nav" class="view">
     <div class="nav-top">
-      <button id="closeNavBtn" type="button" aria-label="Navigation beenden">
-        <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="5" y1="5" x2="19" y2="19"/>
-          <line x1="19" y1="5" x2="5" y2="19"/>
-        </svg>
-      </button>
       <div class="eyebrow">Ziel</div>
       <div id="destName" class="dest-name">—</div>
     </div>
@@ -498,19 +379,6 @@
         <span class="dot"></span>
         <span id="barrierText"></span>
       </div>
-      <div id="barrierError" class="alert alert-warn hide">
-        <span class="dot"></span>
-        <span id="barrierErrorText">Barrieren-Check fehlgeschlagen.</span>
-      </div>
-      <div id="barrierDebug" class="debug-strip hide"></div>
-      <div id="routeChip" class="route-chip"></div>
-      <div id="crossingPanel" class="crossing-panel">
-        <div class="crossing-head">
-          <span class="crossing-title">Querungen als Zwischenziel</span>
-          <button id="clearIntermediate" class="btn-ghost" style="padding:6px 10px;font-size:10.5px;">Zurück</button>
-        </div>
-        <div id="crossingList" class="crossing-list"></div>
-      </div>
       <div id="navHint" class="hint"></div>
     </div>
 
@@ -537,7 +405,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = '2026.07.07.3';
+const APP_VERSION = '2026.07.04.8';
 
 /* ---------------- Geo-Mathe ---------------- */
 const R = 6371000; // m
@@ -581,219 +449,39 @@ function polylineCrosses(a, b, pts){
 
 async function checkBarriers(pos, dest){
   try{
-    hideBarrierError();
-    setBarrierDebug('Barrieren-Check startet …');
-    const pad = 0.006;
+    const pad = 0.004; // ~ etwas Puffer um die Luftlinie
     const south = Math.min(pos.lat, dest.lat) - pad;
     const north = Math.max(pos.lat, dest.lat) + pad;
     const west  = Math.min(pos.lon, dest.lon) - pad;
     const east  = Math.max(pos.lon, dest.lon) + pad;
-    const query = `[out:json][timeout:25][bbox:${south},${west},${north},${east}];
+    const query = `[out:json][timeout:15][bbox:${south},${west},${north},${east}];
 (
   way["waterway"~"^(river|canal|stream|drain)$"];
   way["natural"="water"];
   way["railway"="rail"];
-  node["railway"="level_crossing"];
-  way["bridge"="yes"];
-  way["man_made"="bridge"];
-  way["tunnel"="yes"];
-)->.simple;
-(
-  rel["natural"="water"];
-  rel["waterway"~"^(river|canal)$"];
-)->.waterrels;
-(.simple; .waterrels;);
-out geom tags;`;
+);
+out geom;`;
 
     const res = await fetch('https://overpass-api.de/api/interpreter', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8', 'Accept': 'application/json' },
       body: 'data=' + encodeURIComponent(query),
     });
-    if(!res.ok){
-      setBarrierDebug(`Barrieren-Check: HTTP ${res.status}`);
-      setBarrierError(`Barrieren-Check fehlgeschlagen · Overpass HTTP ${res.status}`);
-      console.warn('Overpass-Anfrage fehlgeschlagen', res.status);
-      return;
-    }
+    if(!res.ok) return;
     const data = await res.json();
 
     let hitWater = false, hitRail = false;
-    let waterWays = 0, waterRelations = 0, railWays = 0, levelCrossings = 0, bridgeWays = 0;
-    const direct = distance(pos.lat, pos.lon, dest.lat, dest.lon);
-    const corridorM = Math.max(120, direct * 0.18);
-    const candidates = [];
-
-    const pointLineDistanceM = (a,b,p) => {
-      const kx = Math.cos(((a.lat+b.lat+p.lat)/3) * Math.PI/180) * 111320;
-      const ky = 110540;
-      const ax = a.lon*kx, ay = a.lat*ky, bx = b.lon*kx, by = b.lat*ky, px = p.lon*kx, py = p.lat*ky;
-      const abx = bx-ax, aby = by-ay, apx = px-ax, apy = py-ay;
-      const ab2 = abx*abx + aby*aby || 1;
-      const t = Math.max(0, Math.min(1, (apx*abx + apy*aby)/ab2));
-      const cx = ax + abx*t, cy = ay + aby*t;
-      return Math.hypot(px-cx, py-cy);
-    };
-
-    const isDefinitelyBlockedForCycling = (tags) => {
-      const highway = tags.highway || '';
-      if(highway === 'motorway' || highway === 'motorway_link') return true;
-      if(tags.access === 'no') return true;
-      if(tags.bicycle === 'no' && tags['bicycle:dismount'] !== 'yes' && tags['bicycle:dismount'] !== 'dismount') return true;
-      return false;
-    };
-
-    const getAccessMode = (tags) => {
-      const highway = tags.highway || '';
-      if(highway === 'motorway' || highway === 'motorway_link') return 'blocked';
-      if(tags.access === 'no' && !(tags.foot === 'yes' || tags.foot === 'designated' || tags.foot === 'permissive')) return 'blocked';
-      if(tags.bicycle === 'no'){
-        if(tags['bicycle:dismount'] === 'yes' || tags['bicycle:dismount'] === 'dismount' || tags.foot === 'yes' || tags.foot === 'designated' || tags.foot === 'permissive') return 'foot_only';
-        return 'blocked';
-      }
-      if(tags.bicycle === 'dismount' || tags['bicycle:dismount'] === 'yes' || tags['bicycle:dismount'] === 'dismount') return 'foot_only';
-      if(highway === 'footway' || highway === 'pedestrian'){
-        if(tags.bicycle === 'yes' || tags.bicycle === 'designated' || tags.bicycle === 'permissive') return 'rideable';
-        return 'foot_only';
-      }
-      if(highway === 'path' && !(tags.bicycle === 'yes' || tags.bicycle === 'designated' || tags.bicycle === 'permissive' || tags.cycleway)) return 'foot_only';
-      return 'rideable';
-    };
-
-    const pushCandidate = (lat, lon, type, barrierType, name, tags) => {
-      if(isDefinitelyBlockedForCycling(tags)) return;
-      const accessMode = getAccessMode(tags);
-      if(accessMode === 'blocked') return;
-      const p = {lat, lon};
-      const dLine = pointLineDistanceM(pos, dest, p);
-      if(dLine > corridorM) return;
-      const a = distance(pos.lat, pos.lon, lat, lon);
-      const b = distance(lat, lon, dest.lat, dest.lon);
-      const detour = Math.max(0, a + b - direct);
-      if(a > direct * 1.35 || detour > Math.max(2200, direct * 1.2)) return;
-      candidates.push({ lat, lon, type, barrierType, name, detour, score: detour + dLine * 0.8 + a * 0.05 + (accessMode === 'foot_only' ? 120 : 0), accessMode });
-    };
-
-    for(const element of (data.elements || [])){
-      const tags = element.tags || {};
-
-      if(element.type === 'way' && element.geometry && element.geometry.length >= 2){
-        const pts = element.geometry.map(g => ({ lat: g.lat, lon: g.lon }));
-        if(tags.railway === 'rail') railWays++;
-        if(tags.waterway || tags.natural === 'water') waterWays++;
-        if((tags.railway === 'rail') && polylineCrosses(pos, dest, pts)) hitRail = true;
-        if(((tags.waterway) || tags.natural === 'water') && polylineCrosses(pos, dest, pts)) hitWater = true;
-        if(tags.bridge === 'yes' || tags.man_made === 'bridge' || tags.tunnel === 'yes'){
-          bridgeWays++;
-          const mid = pts[Math.floor(pts.length / 2)];
-          const barrierType = tags.railway ? 'rail' : (tags.waterway || tags.natural === 'water' ? 'water' : (hitRail && !hitWater ? 'rail' : 'water'));
-          pushCandidate(mid.lat, mid.lon, tags.tunnel === 'yes' ? 'tunnel' : 'bridge', barrierType, tags.name || '', tags);
-        }
-      }
-
-      if(element.type === 'relation' && (tags.waterway || tags.natural === 'water') && Array.isArray(element.members)){
-        waterRelations++;
-        for(const member of element.members){
-          if(member.type === 'way' && Array.isArray(member.geometry) && member.geometry.length >= 2){
-            const pts = member.geometry.map(g => ({ lat: g.lat, lon: g.lon }));
-            if(polylineCrosses(pos, dest, pts)) hitWater = true;
-          }
-        }
-      }
-
-      if(element.type === 'node' && tags.railway === 'level_crossing'){
-        levelCrossings++;
-        pushCandidate(element.lat, element.lon, 'level_crossing', 'rail', tags.name || '', tags);
+    for(const way of (data.elements || [])){
+      if(!way.geometry || way.geometry.length < 2) continue;
+      const pts = way.geometry.map(g => ({ lat: g.lat, lon: g.lon }));
+      if(polylineCrosses(pos, dest, pts)){
+        if(way.tags && way.tags.railway === 'rail') hitRail = true;
+        else hitWater = true;
       }
     }
-
-    const unique = new Map();
-    for(const item of candidates){
-      const key = crossingKey(item);
-      if(!unique.has(key) || item.score < unique.get(key).score) unique.set(key, item);
-    }
-    state.crossingSuggestions = Array.from(unique.values()).sort((a,b)=>a.score-b.score).slice(0,5);
-    renderCrossingSuggestions();
     showBarrierAlert(hitWater, hitRail);
-    setBarrierDebug(`Barrieren-Check: ok · Elemente ${data.elements?.length || 0} · Wasser-Ways ${waterWays} · Wasser-Relationen ${waterRelations} · Bahn-Ways ${railWays} · Querungen ${state.crossingSuggestions.length} · Treffer Wasser ${hitWater ? 'ja' : 'nein'} · Treffer Bahn ${hitRail ? 'ja' : 'nein'}`);
-  }catch(err){
-    setBarrierDebug(`Barrieren-Check: Fehler · ${err && err.message ? err.message : err}`);
-    setBarrierError('Barrieren-Check fehlgeschlagen – Netzwerk/Overpass prüfen.');
-    console.warn('Barrieren-Check fehlgeschlagen', err);
+  }catch(_){
+    // Overpass nicht erreichbar o.ä. — dann eben kein Hinweis, kein Blocker fürs Kernfeature
   }
-}
-
-function crossingKey(item){ return `${item.type}:${item.lat.toFixed(5)},${item.lon.toFixed(5)}`; }
-function crossingTypeLabel(type){
-  if(type === 'level_crossing') return 'Bahnübergang';
-  if(type === 'tunnel') return 'Tunnel';
-  return 'Brücke';
-}
-function formatMetersShort(m){ return m < 1000 ? `${Math.round(m)} m` : `${(m/1000).toFixed(1)} km`; }
-function setRouteChip(){
-  const chip = el('routeChip');
-  if(state.intermediateDest && state.finalDest){
-    chip.textContent = `Zwischenziel aktiv · danach ${state.finalDest.name}`;
-    chip.classList.add('show');
-  }else if(state.finalDest){
-    chip.textContent = `Endziel · ${state.finalDest.name}`;
-    chip.classList.add('show');
-  }else{
-    chip.textContent = '';
-    chip.classList.remove('show');
-  }
-}
-function renderCrossingSuggestions(){
-  const panel = el('crossingPanel');
-  const list = el('crossingList');
-  const legend = el('crossingLegend');
-  const legendText = el('crossingLegendText');
-  list.innerHTML = '';
-  if(!state.crossingSuggestions.length){
-    panel.classList.remove('show');
-    legend.hidden = true;
-    legend.classList.remove('foot-only');
-    return;
-  }
-  let hasFootOnly = false;
-  state.crossingSuggestions.forEach(item => {
-    if(item.accessMode === 'foot_only') hasFootOnly = true;
-    const btn = document.createElement('button');
-    btn.className = 'crossing-option' + (state.selectedCrossingKey === crossingKey(item) ? ' active' : '');
-    const accessText = item.accessMode === 'foot_only' ? '<strong>nur schiebend / zu Fuß</strong>' : 'mit Rad befahrbar';
-    btn.innerHTML = `<span><div class="crossing-name">${item.name || crossingTypeLabel(item.type)}</div><div class="crossing-sub">${crossingTypeLabel(item.type)} · ${item.barrierType === 'rail' ? 'bei Bahnlinie' : 'bei Gewässer'} · ${accessText}</div></span><span class="crossing-dist">+${formatMetersShort(item.detour)}</span>`;
-    btn.addEventListener('click', () => {
-      state.intermediateDest = { lat:item.lat, lon:item.lon, name:item.name || crossingTypeLabel(item.type) };
-      state.selectedCrossingKey = crossingKey(item);
-      state.dest = { ...state.intermediateDest };
-      el('destName').textContent = `${state.intermediateDest.name} · Zwischenziel`;
-      state.crossingLegendMode = item.accessMode || 'rideable';
-      setRouteChip();
-      renderCrossingSuggestions();
-    });
-    list.appendChild(btn);
-  });
-  legend.hidden = false;
-  if(state.crossingLegendMode === 'foot_only' || (!state.selectedCrossingKey && hasFootOnly)){
-    legend.classList.add('foot-only');
-    legendText.textContent = 'Gelb = nur schiebend / zu Fuß nutzbar';
-  }else{
-    legend.classList.remove('foot-only');
-    legendText.textContent = 'Querungen sind für Radfahrt freigegeben';
-  }
-  panel.classList.add('show');
-}
-function setBarrierError(msg){
-  const box = el('barrierError');
-  el('barrierErrorText').textContent = msg || 'Barrieren-Check fehlgeschlagen.';
-  box.classList.remove('hide');
-}
-function hideBarrierError(){ el('barrierError').classList.add('hide'); }
-function setBarrierDebug(msg){
-  const box = el('barrierDebug');
-  if(!msg){ box.textContent = ''; box.classList.add('hide'); return; }
-  box.textContent = msg;
-  box.classList.remove('hide');
 }
 
 function showBarrierAlert(hitWater, hitRail){
@@ -803,7 +491,7 @@ function showBarrierAlert(hitWater, hitRail){
   if(hitWater && hitRail) msg = 'Gewässer und Bahnlinie zwischen hier und Ziel';
   else if(hitWater) msg = 'Gewässer zwischen hier und Ziel';
   else msg = 'Bahnlinie zwischen hier und Ziel';
-  el('barrierText').textContent = msg + ' · Querung als Zwischenziel wählen';
+  el('barrierText').textContent = msg;
   box.classList.remove('hide');
 }
 
@@ -821,11 +509,6 @@ const state = {
   compassGranted: false,
   barrierChecked: false,
   lastBlip: null,
-  finalDest: null,
-  intermediateDest: null,
-  crossingSuggestions: [],
-  selectedCrossingKey: null,
-  crossingLegendMode: '',
 };
 
 const GPS_SWITCH_ON  = 1.0;
@@ -906,8 +589,6 @@ function startNav(dest){
   state.dest = dest;
   state.barrierChecked = false;
   el('barrierAlert').classList.add('hide');
-  hideBarrierError();
-  setBarrierDebug('');
   el('destName').textContent = dest.name;
   show('nav');
   requestCompass().finally(startGeolocation);
@@ -916,33 +597,8 @@ function startNav(dest){
 el('changeDest').addEventListener('click', ()=>{
   if(state.watchId!==null){ navigator.geolocation.clearWatch(state.watchId); state.watchId=null; }
   resultsEl.innerHTML=''; note.textContent=''; qInput.value = state.dest?.name || '';
-  hideBarrierError();
-  setBarrierDebug('');
   show('search'); qInput.focus();
   renderFavorites();
-});
-
-el('closeNavBtn').addEventListener('click', ()=>{
-  if(state.watchId!==null){ navigator.geolocation.clearWatch(state.watchId); state.watchId=null; }
-  state.dest = null;
-  state.finalDest = null;
-  state.intermediateDest = null;
-  state.crossingSuggestions = [];
-  state.selectedCrossingKey = null;
-  state.barrierChecked = false;
-  el('barrierAlert').classList.add('hide');
-  hideBarrierError();
-  setBarrierDebug('');
-  renderCrossingSuggestions();
-  setRouteChip();
-  resultsEl.innerHTML=''; note.textContent=''; qInput.value = '';
-  show('search'); qInput.focus();
-  renderFavorites();
-});
-
-el('reloadTopBtn').addEventListener('click', ()=>{
-  const url = location.pathname + '?_=' + Date.now();
-  location.replace(url);
 });
 
 /* ---------------- Favoriten ---------------- */
@@ -1254,36 +910,6 @@ if('serviceWorker' in navigator){
     navigator.serviceWorker.register('./sw.js').catch(()=>{ /* SW optional — App läuft auch ohne */ });
   });
 }
-
-/* ---------------- Theme Toggle ---------------- */
-(function(){
-  const root = document.documentElement;
-  const toggleBtn = document.getElementById('themeToggle');
-  const systemDark = window.matchMedia('(prefers-color-scheme: dark)');
-  let theme = null; // null = folgt Systemeinstellung
-
-  function applyTheme(){
-    if(theme === null){
-      root.removeAttribute('data-theme');
-    }else{
-      root.setAttribute('data-theme', theme);
-    }
-    const isDark = theme === null ? systemDark.matches : theme === 'dark';
-    toggleBtn.setAttribute('aria-label', isDark ? 'Zu Light Mode wechseln' : 'Zu Dark Mode wechseln');
-    const metaTheme = document.querySelector('meta[name="theme-color"]');
-    if(metaTheme) metaTheme.setAttribute('content', isDark ? '#04120A' : '#EFE9D8');
-  }
-
-  toggleBtn.addEventListener('click', ()=>{
-    const currentlyDark = theme === null ? systemDark.matches : theme === 'dark';
-    theme = currentlyDark ? 'light' : 'dark';
-    applyTheme();
-  });
-
-  systemDark.addEventListener?.('change', ()=>{ if(theme === null) applyTheme(); });
-  applyTheme();
-})();
-
 </script>
 </body>
 </html>
