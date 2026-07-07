@@ -437,6 +437,23 @@
   .intermediate-actions.hide{display:none;}
   .intermediate-actions .btn-ghost{min-height:42px;padding:0 14px;}
 
+
+  .nav-top{display:grid;gap:10px;justify-items:center;}
+  .eyebrow + .target-line{margin-top:2px;}
+  .target-line{max-width:min(92vw,560px);display:grid;gap:8px;justify-items:start;align-items:start;justify-content:center;}
+  .target-line:empty{display:none;}
+  .target-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center;}
+  .target-name{font-size:12px;line-height:1.3;max-width:min(62vw,360px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .readout{display:grid;gap:10px;justify-items:center;}
+  .distance{margin-top:2px;}
+  #navHint:empty{display:none;}
+  .crossing-head{align-items:center;}
+  .crossing-title{font-size:11px;line-height:1.35;}
+  .crossing-panel{padding:12px 14px;}
+  .crossing-list{margin-top:10px;}
+  .nav-actions{margin-top:20px;}
+  #versionTag{opacity:.4;}
+
 </style>
 </head>
 <body>
@@ -512,8 +529,7 @@
         </svg>
       </button>
       <div class="eyebrow">Ziel</div>
-      <div id="destName" class="dest-name">—</div>
-      <div id="targetLine" class="target-line"></div>
+<div id="targetLine" class="target-line"></div>
     </div>
 
     <div class="compass">
@@ -580,8 +596,7 @@
         <button id="intermediateDone" class="btn-ghost accent" type="button">Zwischenziel erreicht</button>
         <button id="intermediateSkip" class="btn-ghost" type="button">Überspringen</button>
       </div>
-      <div id="routeChip" class="route-chip"></div>
-      <div id="crossingPanel" class="crossing-panel compact">
+<div id="crossingPanel" class="crossing-panel compact">
         <div class="crossing-head">
           <span id="crossingSummary" class="crossing-title">Querungen als Zwischenziel</span>
           <div class="crossing-head-actions">
@@ -592,11 +607,7 @@
         <div id="crossingList" class="crossing-list"></div>
       </div>
       <div id="navHint" class="hint"></div>
-      <div id="crossingLegend" class="crossing-badge" hidden>
-        <span class="dot"></span>
-        <span id="crossingLegendText">Querungen sind für Radfahrt freigegeben</span>
-      </div>
-    </div>
+</div>
 
     <div class="nav-actions">
       <button id="enableCompass" class="btn-ghost accent hide">Kompass aktivieren</button>
@@ -634,7 +645,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = '2026.07.07.13';
+const APP_VERSION = '2026.07.07.15';
 
 /* ---------------- Geo-Mathe ---------------- */
 const R = 6371000; // m
@@ -696,6 +707,7 @@ async function checkBarriers(pos, dest){
   way["waterway"~"^(river|canal|stream|drain)$"];
   way["natural"="water"];
   way["railway"="rail"];
+  way["highway"~"^(motorway|motorway_link)$"];
   node["railway"="level_crossing"];
   way["bridge"="yes"];
   way["man_made"="bridge"];
@@ -720,8 +732,8 @@ out geom tags;`;
     }
     const data = await res.json();
 
-    let hitWater = false, hitRail = false;
-    let waterWays = 0, waterRelations = 0, railWays = 0, levelCrossings = 0, bridgeWays = 0;
+    let hitWater = false, hitRail = false, hitMotorway = false;
+    let waterWays = 0, waterRelations = 0, railWays = 0, motorwayWays = 0, levelCrossings = 0, bridgeWays = 0;
     const direct = distance(pos.lat, pos.lon, dest.lat, dest.lon);
     const corridorM = Math.max(120, direct * 0.18);
     const candidates = [];
@@ -781,14 +793,20 @@ out geom tags;`;
 
       if(element.type === 'way' && element.geometry && element.geometry.length >= 2){
         const pts = element.geometry.map(g => ({ lat: g.lat, lon: g.lon }));
+        const crossesDirect = polylineCrosses(pos, dest, pts);
         if(tags.railway === 'rail') railWays++;
+        if(tags.highway === 'motorway' || tags.highway === 'motorway_link') motorwayWays++;
         if(tags.waterway || tags.natural === 'water') waterWays++;
-        if((tags.railway === 'rail') && polylineCrosses(pos, dest, pts)) hitRail = true;
-        if(((tags.waterway) || tags.natural === 'water') && polylineCrosses(pos, dest, pts)) hitWater = true;
+        if((tags.railway === 'rail') && crossesDirect) hitRail = true;
+        if((tags.highway === 'motorway' || tags.highway === 'motorway_link') && crossesDirect) hitMotorway = true;
+        if(((tags.waterway) || tags.natural === 'water') && crossesDirect) hitWater = true;
         if(tags.bridge === 'yes' || tags.man_made === 'bridge' || tags.tunnel === 'yes'){
           bridgeWays++;
           const mid = pts[Math.floor(pts.length / 2)];
-          const barrierType = tags.railway ? 'rail' : (tags.waterway || tags.natural === 'water' ? 'water' : (hitRail && !hitWater ? 'rail' : 'water'));
+          let barrierType = 'water';
+          if(hitMotorway) barrierType = 'motorway';
+          else if(hitRail) barrierType = 'rail';
+          else if(hitWater) barrierType = 'water';
           pushCandidate(mid.lat, mid.lon, tags.tunnel === 'yes' ? 'tunnel' : 'bridge', barrierType, tags.name || '', tags);
         }
       }
@@ -816,8 +834,8 @@ out geom tags;`;
     }
     state.crossingSuggestions = Array.from(unique.values()).sort((a,b)=>a.score-b.score).slice(0,5);
     renderCrossingSuggestions();
-    showBarrierAlert(hitWater, hitRail);
-    setBarrierDebug(`Barrieren-Check: ok · Elemente ${data.elements?.length || 0} · Wasser-Ways ${waterWays} · Wasser-Relationen ${waterRelations} · Bahn-Ways ${railWays} · Querungen ${state.crossingSuggestions.length} · Treffer Wasser ${hitWater ? 'ja' : 'nein'} · Treffer Bahn ${hitRail ? 'ja' : 'nein'}`);
+    showBarrierAlert(hitWater, hitRail, hitMotorway);
+    setBarrierDebug(`Barrieren-Check: ok · Elemente ${data.elements?.length || 0} · Wasser-Ways ${waterWays} · Wasser-Relationen ${waterRelations} · Bahn-Ways ${railWays} · Autobahn-Ways ${motorwayWays} · Querungen ${state.crossingSuggestions.length} · Treffer Wasser ${hitWater ? 'ja' : 'nein'} · Treffer Bahn ${hitRail ? 'ja' : 'nein'} · Treffer Autobahn ${hitMotorway ? 'ja' : 'nein'}`);
   }catch(err){
     setBarrierDebug(`Barrieren-Check: Fehler · ${err && err.message ? err.message : err}`);
     setBarrierError('Barrieren-Check fehlgeschlagen – Netzwerk/Overpass prüfen.');
@@ -832,6 +850,12 @@ function crossingTypeLabel(type){
   return 'Brücke';
 }
 function formatMetersShort(m){ return m < 1000 ? `${Math.round(m)} m` : `${(m/1000).toFixed(1)} km`; }
+function renderNavChrome(){
+  setRouteChip();
+  renderCrossingSuggestions();
+  syncBarrierUI();
+}
+
 function updateIntermediateActions(dist){
   const box = el('intermediateActions');
   if(!box) return;
@@ -845,22 +869,26 @@ function activateFinalDestination(message=''){
   state.crossingLegendMode = '';
   state.crossingExpanded = false;
   state.dest = { ...state.finalDest };
-  el('destName').textContent = state.finalDest.name;
-  setRouteChip();
-  renderCrossingSuggestions();
+  renderNavChrome();
   updateIntermediateActions(null);
   if(message) el('navHint').textContent = message;
 }
 
 function setRouteChip(){
-  const chip = el('routeChip');
   const line = el('targetLine');
-  if(chip){ chip.textContent = ''; chip.classList.remove('show'); }
   if(!line) return;
   if(state.intermediateDest && state.finalDest){
-    line.innerHTML = `<span class="target-pill target-pill-intermediate">Zwischenziel</span><span class="target-name">${escHtml(state.intermediateDest.name)}</span><span class="target-pill target-pill-final">Endziel</span><span class="target-name">${escHtml(state.finalDest.name)}</span>`;
+    line.innerHTML = `
+      <div class="target-row">
+        <span class="target-pill target-pill-intermediate">Zwischenziel</span>
+        <span class="target-name">${escHtml(state.intermediateDest.name)}</span>
+      </div>
+      <div class="target-row">
+        <span class="target-pill target-pill-final">Endziel</span>
+        <span class="target-name">${escHtml(state.finalDest.name)}</span>
+      </div>`;
   }else if(state.finalDest){
-    line.innerHTML = `<span class="target-pill target-pill-final">Ziel</span><span class="target-name">${escHtml(state.finalDest.name)}</span>`;
+    line.innerHTML = `<div class="target-row"><span class="target-pill target-pill-final">Ziel</span><span class="target-name">${escHtml(state.finalDest.name)}</span></div>`;
   }else{
     line.innerHTML = '';
   }
@@ -870,16 +898,12 @@ function renderCrossingSuggestions(){
   const list = el('crossingList');
   const summary = el('crossingSummary');
   const toggle = el('toggleCrossings');
-  const legend = el('crossingLegend');
-  const legendText = el('crossingLegendText');
   list.innerHTML = '';
   if(!state.crossingSuggestions.length){
     panel.classList.remove('show');
     panel.classList.add('compact');
     if(summary) summary.textContent = 'Querungen als Zwischenziel';
     if(toggle) toggle.textContent = 'Anzeigen';
-    legend.hidden = true;
-    legend.classList.remove('foot-only');
     return;
   }
   let hasFootOnly = false;
@@ -888,7 +912,7 @@ function renderCrossingSuggestions(){
     const btn = document.createElement('button');
     btn.className = 'crossing-option' + (state.selectedCrossingKey === crossingKey(item) ? ' active' : '');
     const accessText = item.accessMode === 'foot_only' ? '<strong>nur schiebend / zu Fuß</strong>' : 'mit Rad befahrbar';
-    btn.innerHTML = `<span><div class="crossing-name">${item.name || crossingTypeLabel(item.type)}</div><div class="crossing-sub">${crossingTypeLabel(item.type)} · ${item.barrierType === 'rail' ? 'bei Bahnlinie' : 'bei Gewässer'} · ${accessText}</div></span><span class="crossing-dist">+${formatMetersShort(item.detour)}</span>`;
+    btn.innerHTML = `<span><div class="crossing-name">${item.name || crossingTypeLabel(item.type)}</div><div class="crossing-sub">${crossingTypeLabel(item.type)} · ${item.barrierType === 'rail' ? 'bei Bahnlinie' : (item.barrierType === 'motorway' ? 'bei Autobahn' : 'bei Gewässer')} · ${accessText}</div></span><span class="crossing-dist">+${formatMetersShort(item.detour)}</span>`;
     btn.addEventListener('click', () => {
       state.intermediateDest = { lat:item.lat, lon:item.lon, name:item.name || crossingTypeLabel(item.type) };
       state.selectedCrossingKey = crossingKey(item);
@@ -897,28 +921,22 @@ function renderCrossingSuggestions(){
       state.crossingExpanded = false;
       el('navHint').textContent = '';
       setRouteChip();
-      el('destName').textContent = state.intermediateDest.name;
       renderCrossingSuggestions();
       updateIntermediateActions(Number.POSITIVE_INFINITY);
     });
     list.appendChild(btn);
   });
   if(summary){
+    const accessHint = state.selectedCrossingKey
+      ? (state.crossingLegendMode === 'foot_only' ? ' · nur schiebend' : ' · mit Rad fahrbar')
+      : (hasFootOnly ? ' · teils nur schiebend' : '');
     summary.textContent = state.selectedCrossingKey
-      ? `${state.crossingSuggestions.length} Querungen · Zwischenziel gewählt`
-      : `${state.crossingSuggestions.length} Querungen als Zwischenziel`;
+      ? `${state.crossingSuggestions.length} Querungen · Zwischenziel gewählt${accessHint}`
+      : `${state.crossingSuggestions.length} Querungen als Zwischenziel${accessHint}`;
   }
   if(toggle) toggle.textContent = state.crossingExpanded ? 'Einklappen' : 'Anzeigen';
   panel.classList.add('show');
   panel.classList.toggle('compact', !state.crossingExpanded);
-  legend.hidden = !state.crossingExpanded;
-  if(state.crossingLegendMode === 'foot_only' || (!state.selectedCrossingKey && hasFootOnly)){
-    legend.classList.add('foot-only');
-    legendText.textContent = 'Gelb = nur schiebend / zu Fuß nutzbar';
-  }else{
-    legend.classList.remove('foot-only');
-    legendText.textContent = 'Querungen sind für Radfahrt freigegeben';
-  }
 }
 function syncBarrierUI(){
   const btn = el('barrierInfoBtn');
@@ -973,15 +991,17 @@ function setBarrierDebug(msg){
   state.barrierDebugText = msg || '';
   syncBarrierUI();
 }
-function showBarrierAlert(hitWater, hitRail){
-  const box = el('barrierAlert');
-  if(!hitWater && !hitRail){ box.classList.add('hide'); return; }
-  let msg;
-  if(hitWater && hitRail) msg = 'Gewässer und Bahnlinie zwischen hier und Ziel';
-  else if(hitWater) msg = 'Gewässer zwischen hier und Ziel';
-  else msg = 'Bahnlinie zwischen hier und Ziel';
-  el('barrierText').textContent = msg + ' · Querung als Zwischenziel wählen';
-  box.classList.remove('hide');
+function showBarrierAlert(hitWater, hitRail, hitMotorway){
+  state.barrierIsError = false;
+  if(hitWater && hitRail && hitMotorway) state.barrierSummary = 'Gewässer, Bahnlinie und Autobahn zwischen hier und Ziel';
+  else if(hitWater && hitRail) state.barrierSummary = 'Gewässer und Bahnlinie zwischen hier und Ziel';
+  else if(hitWater && hitMotorway) state.barrierSummary = 'Gewässer und Autobahn zwischen hier und Ziel';
+  else if(hitRail && hitMotorway) state.barrierSummary = 'Bahnlinie und Autobahn zwischen hier und Ziel';
+  else if(hitWater) state.barrierSummary = 'Gewässer zwischen hier und Ziel';
+  else if(hitRail) state.barrierSummary = 'Bahnlinie zwischen hier und Ziel';
+  else if(hitMotorway) state.barrierSummary = 'Autobahn zwischen hier und Ziel';
+  else state.barrierSummary = 'Barrieren-Check ohne Treffer';
+  syncBarrierUI();
 }
 
 /* ---------------- State ---------------- */
@@ -1192,7 +1212,6 @@ function startNav(dest){
   hideBarrierError();
   setBarrierDebug('');
   syncBarrierUI();
-  el('destName').textContent = dest.name;
   show('nav');
   closeBarrierModal();
   requestCompass().finally(startGeolocation);
@@ -1212,8 +1231,7 @@ el('changeDest').addEventListener('click', ()=>{
   hideBarrierError();
   setBarrierDebug('');
   syncBarrierUI();
-  renderCrossingSuggestions();
-  setRouteChip();
+  renderNavChrome();
   resultsEl.innerHTML=''; note.textContent=''; qInput.value = '';
   closeBarrierModal(); show('search'); qInput.focus();
   renderFavorites();
@@ -1246,8 +1264,7 @@ el('closeNavBtn').addEventListener('click', ()=>{
   hideBarrierError();
   setBarrierDebug('');
   syncBarrierUI();
-  renderCrossingSuggestions();
-  setRouteChip();
+  renderNavChrome();
   resultsEl.innerHTML=''; note.textContent=''; qInput.value = '';
   closeBarrierModal(); show('search'); qInput.focus();
   renderFavorites();
