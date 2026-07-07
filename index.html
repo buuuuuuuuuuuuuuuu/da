@@ -467,8 +467,11 @@
               <circle cx="100" cy="6" r="11" fill="var(--accent)" opacity="0.28"/>
               <circle cx="100" cy="6" r="4.5" fill="var(--accent)"/>
             </g>
-            <!-- kleiner, zurückhaltender Pfeil in der Mitte -->
-            <path d="M100 85 L109 101 L100 94 L91 101 Z" fill="var(--accent)" opacity="0.7"/>
+            <!-- zentrale Kompassnadel: auf die Mittelachse des Radar-Streifens ausgerichtet -->
+            <g class="center-needle" opacity="0.78">
+              <path d="M100 100 L100 82 L108 98 Z" fill="var(--accent)"/>
+              <path d="M100 100 L100 110 L93 99 Z" fill="var(--muted)" opacity="0.88"/>
+            </g>
             <!-- Distanz-Tag am Blip, bleibt per Gegenrotation aufrecht -->
             <g id="blipLabel">
               <rect id="blipLabelRect" x="106" y="-6" width="52" height="20" rx="5" fill="var(--surface)" stroke="var(--hairline)"/>
@@ -534,7 +537,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = '2026.07.07.4';
+const APP_VERSION = '2026.07.07.5';
 
 /* ---------------- Geo-Mathe ---------------- */
 const R = 6371000; // m
