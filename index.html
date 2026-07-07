@@ -107,7 +107,7 @@
     border-radius:6px;padding:7px 14px;flex:0 0 auto;
   }
   body.has-banner #search{padding-top:calc(var(--safe-t) + 62px);transition:padding-top .25s ease;}
-  body.has-banner #nav{padding-top:calc(var(--safe-t) + 76px);transition:padding-top .25s ease;}
+  body.has-banner #nav{padding-top:76px;transition:padding-top .25s ease;}
 
   #themeToggle{
     position:fixed;top:calc(var(--safe-t) + 10px);left:14px;
@@ -142,12 +142,10 @@
 
   .nav-top{position:relative;}
   #closeNavBtn{
-    position:fixed;top:calc(var(--safe-t) + 10px);right:14px;
-    z-index:20;width:36px;height:36px;border-radius:50%;
+    position:absolute;top:2px;right:2px;
+    width:32px;height:32px;border-radius:50%;
     display:flex;align-items:center;justify-content:center;
-    background:color-mix(in srgb, var(--surface) 88%, transparent);
-    border:1px solid var(--hairline);
-    -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+    background:var(--surface);border:1px solid var(--hairline);
   }
   #closeNavBtn:active{background:var(--surface-2);transform:scale(.94);}
   #closeNavBtn svg{width:15px;height:15px;stroke:var(--fg);fill:none;stroke-width:2;}
@@ -215,6 +213,16 @@
   .fav-section{margin-top:26px;}
   .fav-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px;}
   .fav-head .eyebrow{font-family:ui-monospace,"SF Mono",Menlo,"Liberation Mono",monospace;}
+
+  .alert-warn{color:var(--warn);border-color:color-mix(in srgb, var(--warn) 24%, var(--hairline));}
+  .alert-warn .dot{background:var(--warn);}
+  .debug-strip{
+    width:100%;max-width:420px;margin:8px auto 0; padding:7px 10px;
+    border:1px dashed var(--hairline); border-radius:10px;
+    font-family:ui-monospace,"SF Mono",Menlo,"Liberation Mono",monospace;
+    font-size:10.5px; line-height:1.45; color:var(--muted);
+    text-align:left; opacity:.92; word-break:break-word;
+  }
   .fav-filters{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px;}
   .chip{
     font-family:ui-monospace,"SF Mono",Menlo,"Liberation Mono",monospace;
@@ -286,7 +294,7 @@
   @keyframes spin{to{transform:rotate(360deg);}}
 
   /* ---------- Nav ---------- */
-  #nav{align-items:center;justify-content:space-between;padding:calc(var(--safe-t) + 22px) 22px 0;}
+  #nav{align-items:center;justify-content:space-between;padding:22px 22px 0;}
   .nav-top{width:100%;text-align:center;padding-top:8px;}
   .dest-name{font-size:16px;font-weight:700;margin-top:6px;line-height:1.35;
     max-width:90%;margin-left:auto;margin-right:auto;
@@ -490,6 +498,11 @@
         <span class="dot"></span>
         <span id="barrierText"></span>
       </div>
+      <div id="barrierError" class="alert alert-warn hide">
+        <span class="dot"></span>
+        <span id="barrierErrorText">Barrieren-Check fehlgeschlagen.</span>
+      </div>
+      <div id="barrierDebug" class="debug-strip hide"></div>
       <div id="routeChip" class="route-chip"></div>
       <div id="crossingPanel" class="crossing-panel">
         <div class="crossing-head">
@@ -524,7 +537,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = '2026.07.07.1';
+const APP_VERSION = '2026.07.07.3';
 
 /* ---------------- Geo-Mathe ---------------- */
 const R = 6371000; // m
@@ -568,17 +581,13 @@ function polylineCrosses(a, b, pts){
 
 async function checkBarriers(pos, dest){
   try{
+    hideBarrierError();
+    setBarrierDebug('Barrieren-Check startet …');
     const pad = 0.006;
     const south = Math.min(pos.lat, dest.lat) - pad;
     const north = Math.max(pos.lat, dest.lat) + pad;
     const west  = Math.min(pos.lon, dest.lon) - pad;
     const east  = Math.max(pos.lon, dest.lon) + pad;
-    // Große Flüsse/Wasserflächen (z. B. Spree, Havel) sind in OSM meist als
-    // Multipolygon-Relation erfasst, nicht als einfacher "way". Der einfache
-    // "out geom" auf die Relation selbst liefert keine verlässliche Geometrie
-    // der Mitglieder — deshalb werden die Wasser-Relationen im Suchgebiet
-    // explizit aufgelöst (rel -> ihre way-Mitglieder) und deren Ways separat
-    // mit voller Geometrie abgefragt.
     const query = `[out:json][timeout:25][bbox:${south},${west},${north},${east}];
 (
   way["waterway"~"^(river|canal|stream|drain)$"];
@@ -598,15 +607,19 @@ out geom tags;`;
 
     const res = await fetch('https://overpass-api.de/api/interpreter', {
       method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8', 'Accept': 'application/json' },
       body: 'data=' + encodeURIComponent(query),
     });
     if(!res.ok){
+      setBarrierDebug(`Barrieren-Check: HTTP ${res.status}`);
+      setBarrierError(`Barrieren-Check fehlgeschlagen · Overpass HTTP ${res.status}`);
       console.warn('Overpass-Anfrage fehlgeschlagen', res.status);
       return;
     }
     const data = await res.json();
 
     let hitWater = false, hitRail = false;
+    let waterWays = 0, waterRelations = 0, railWays = 0, levelCrossings = 0, bridgeWays = 0;
     const direct = distance(pos.lat, pos.lon, dest.lat, dest.lon);
     const corridorM = Math.max(120, direct * 0.18);
     const candidates = [];
@@ -666,21 +679,20 @@ out geom tags;`;
 
       if(element.type === 'way' && element.geometry && element.geometry.length >= 2){
         const pts = element.geometry.map(g => ({ lat: g.lat, lon: g.lon }));
+        if(tags.railway === 'rail') railWays++;
+        if(tags.waterway || tags.natural === 'water') waterWays++;
         if((tags.railway === 'rail') && polylineCrosses(pos, dest, pts)) hitRail = true;
         if(((tags.waterway) || tags.natural === 'water') && polylineCrosses(pos, dest, pts)) hitWater = true;
         if(tags.bridge === 'yes' || tags.man_made === 'bridge' || tags.tunnel === 'yes'){
+          bridgeWays++;
           const mid = pts[Math.floor(pts.length / 2)];
           const barrierType = tags.railway ? 'rail' : (tags.waterway || tags.natural === 'water' ? 'water' : (hitRail && !hitWater ? 'rail' : 'water'));
           pushCandidate(mid.lat, mid.lon, tags.tunnel === 'yes' ? 'tunnel' : 'bridge', barrierType, tags.name || '', tags);
         }
       }
 
-      // Relationen (z. B. große Flüsse wie Spree/Havel als Multipolygon):
-      // Wasser-Tags hängen nur an der Relation, nicht an den einzelnen
-      // Uferabschnitten. Mit "out geom" liefert Overpass die Geometrie
-      // direkt in element.members[].geometry — daraus lesen wir die
-      // Ufer-Ways aus, statt sie separat per way(r.waterrels) abzufragen.
       if(element.type === 'relation' && (tags.waterway || tags.natural === 'water') && Array.isArray(element.members)){
+        waterRelations++;
         for(const member of element.members){
           if(member.type === 'way' && Array.isArray(member.geometry) && member.geometry.length >= 2){
             const pts = member.geometry.map(g => ({ lat: g.lat, lon: g.lon }));
@@ -690,6 +702,7 @@ out geom tags;`;
       }
 
       if(element.type === 'node' && tags.railway === 'level_crossing'){
+        levelCrossings++;
         pushCandidate(element.lat, element.lon, 'level_crossing', 'rail', tags.name || '', tags);
       }
     }
@@ -702,7 +715,10 @@ out geom tags;`;
     state.crossingSuggestions = Array.from(unique.values()).sort((a,b)=>a.score-b.score).slice(0,5);
     renderCrossingSuggestions();
     showBarrierAlert(hitWater, hitRail);
+    setBarrierDebug(`Barrieren-Check: ok · Elemente ${data.elements?.length || 0} · Wasser-Ways ${waterWays} · Wasser-Relationen ${waterRelations} · Bahn-Ways ${railWays} · Querungen ${state.crossingSuggestions.length} · Treffer Wasser ${hitWater ? 'ja' : 'nein'} · Treffer Bahn ${hitRail ? 'ja' : 'nein'}`);
   }catch(err){
+    setBarrierDebug(`Barrieren-Check: Fehler · ${err && err.message ? err.message : err}`);
+    setBarrierError('Barrieren-Check fehlgeschlagen – Netzwerk/Overpass prüfen.');
     console.warn('Barrieren-Check fehlgeschlagen', err);
   }
 }
@@ -767,6 +783,19 @@ function renderCrossingSuggestions(){
   }
   panel.classList.add('show');
 }
+function setBarrierError(msg){
+  const box = el('barrierError');
+  el('barrierErrorText').textContent = msg || 'Barrieren-Check fehlgeschlagen.';
+  box.classList.remove('hide');
+}
+function hideBarrierError(){ el('barrierError').classList.add('hide'); }
+function setBarrierDebug(msg){
+  const box = el('barrierDebug');
+  if(!msg){ box.textContent = ''; box.classList.add('hide'); return; }
+  box.textContent = msg;
+  box.classList.remove('hide');
+}
+
 function showBarrierAlert(hitWater, hitRail){
   const box = el('barrierAlert');
   if(!hitWater && !hitRail){ box.classList.add('hide'); return; }
@@ -877,6 +906,8 @@ function startNav(dest){
   state.dest = dest;
   state.barrierChecked = false;
   el('barrierAlert').classList.add('hide');
+  hideBarrierError();
+  setBarrierDebug('');
   el('destName').textContent = dest.name;
   show('nav');
   requestCompass().finally(startGeolocation);
@@ -885,6 +916,8 @@ function startNav(dest){
 el('changeDest').addEventListener('click', ()=>{
   if(state.watchId!==null){ navigator.geolocation.clearWatch(state.watchId); state.watchId=null; }
   resultsEl.innerHTML=''; note.textContent=''; qInput.value = state.dest?.name || '';
+  hideBarrierError();
+  setBarrierDebug('');
   show('search'); qInput.focus();
   renderFavorites();
 });
@@ -898,6 +931,8 @@ el('closeNavBtn').addEventListener('click', ()=>{
   state.selectedCrossingKey = null;
   state.barrierChecked = false;
   el('barrierAlert').classList.add('hide');
+  hideBarrierError();
+  setBarrierDebug('');
   renderCrossingSuggestions();
   setRouteChip();
   resultsEl.innerHTML=''; note.textContent=''; qInput.value = '';
