@@ -311,13 +311,7 @@
   .readout{width:100%;text-align:center;}
   .distance{font-size:50px;font-weight:700;letter-spacing:-.01em;color:var(--accent);line-height:1;}
   .distance .unit{font-size:20px;color:var(--muted);margin-left:6px;font-weight:700;}
-
-  .status{
-    display:inline-flex;align-items:center;gap:8px;margin-top:16px;
-    background:var(--surface);border:1px solid var(--hairline);
-    border-radius:6px;padding:6px 12px;font-size:11px;color:var(--muted);
-    letter-spacing:.1em;text-transform:uppercase;
-  }
+  .status-inline{display:inline-flex;align-items:center;justify-content:center;gap:8px;margin-top:6px;color:var(--muted);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;}
   .dot{width:6px;height:6px;border-radius:50%;background:var(--muted);flex:0 0 auto;}
   .dot.gps{background:var(--gps);}
   .dot.compass{background:var(--accent);}
@@ -514,7 +508,8 @@
 
     <div class="readout">
       <div class="distance"><span id="distVal">—</span><span id="distUnit" class="unit"></span></div>
-      <div class="status">
+      <!-- kompakter Quellenstatus statt großer Kompass-Kachel -->
+      <div class="status-inline" aria-live="polite">
         <span id="statusDot" class="dot none"></span>
         <span id="statusText">Suche Signal …</span>
       </div>
@@ -573,7 +568,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = '2026.07.07.10';
+const APP_VERSION = '2026.07.07.11';
 
 /* ---------------- Geo-Mathe ---------------- */
 const R = 6371000; // m
