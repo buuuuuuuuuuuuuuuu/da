@@ -548,7 +548,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = '2026.07.07.7';
+const APP_VERSION = '2026.07.07.8';
 
 /* ---------------- Geo-Mathe ---------------- */
 const R = 6371000; // m
@@ -1319,39 +1319,6 @@ function frame(){
       t.setAttribute('x', 106 + w/2);
     }
 
-    const finalMarker = el('finalMarker');
-    const finalDest = state.intermediateDest && state.finalDest ? state.finalDest : null;
-    if(finalDest){
-      const finalDist = distance(pos.lat,pos.lon,finalDest.lat,finalDest.lon);
-      const finalBearing = bearing(pos.lat,pos.lon,finalDest.lat,finalDest.lon);
-      const previewHeading = state.smoothHeading ?? state.gpsHeading ?? state.compassHeading ?? 0;
-      const finalRel = (finalBearing - previewHeading + 360) % 360;
-      const maxRadarDist = Math.max(dist * 1.35, finalDist, 1200);
-      const p2 = radarPointFromDistanceAndAngle(finalDist, finalRel, maxRadarDist);
-      finalMarker.style.display = '';
-      el('finalMarkerHalo').setAttribute('cx', p2.x.toFixed(1));
-      el('finalMarkerHalo').setAttribute('cy', p2.y.toFixed(1));
-      el('finalMarkerDot').setAttribute('cx', p2.x.toFixed(1));
-      el('finalMarkerDot').setAttribute('cy', p2.y.toFixed(1));
-      const label = el('finalLabel');
-      const finalText = el('finalLabelText');
-      const shortFinal = formatMetersShort(finalDist);
-      finalText.textContent = shortFinal;
-      const finalW = Math.max(34, Math.ceil(finalText.getComputedTextLength()) + 12);
-      el('finalLabelRect').setAttribute('width', finalW);
-      finalText.setAttribute('x', finalW/2);
-      finalText.setAttribute('y', 9);
-      el('finalLabelRect').setAttribute('x', 0);
-      el('finalLabelRect').setAttribute('y', 0);
-      let lx = p2.x + 8;
-      if(p2.x > 138) lx = p2.x - finalW - 8;
-      let ly = p2.y - 9;
-      if(ly < 4) ly = p2.y + 8;
-      label.setAttribute('transform', `translate(${lx.toFixed(1)} ${ly.toFixed(1)})`);
-    }else if(finalMarker){
-      finalMarker.style.display = 'none';
-    }
-
     const pick = pickHeading();
     state.source = pick.s;
 
@@ -1367,12 +1334,50 @@ function frame(){
       const wrap = el('needleWrap');
       wrap.style.transform = `rotate(${state.displayAngle}deg)`;
       el('blipLabel').setAttribute('transform', `rotate(${-state.displayAngle} 100 6)`);
+
+      const finalMarker = el('finalMarker');
+      const finalDest = state.intermediateDest && state.finalDest ? state.finalDest : null;
+      if(finalMarker){
+        if(finalDest){
+          const finalDist = distance(pos.lat,pos.lon,finalDest.lat,finalDest.lon);
+          const finalBearing = bearing(pos.lat,pos.lon,finalDest.lat,finalDest.lon);
+          const deltaFromActive = angleDelta(brg, finalBearing);
+          const maxRadarDist = Math.max(dist * 1.35, finalDist, 1200);
+          const p2 = radarPointFromDistanceAndAngle(finalDist, deltaFromActive, maxRadarDist);
+          finalMarker.style.display = '';
+          el('finalMarkerHalo').setAttribute('cx', p2.x.toFixed(1));
+          el('finalMarkerHalo').setAttribute('cy', p2.y.toFixed(1));
+          el('finalMarkerDot').setAttribute('cx', p2.x.toFixed(1));
+          el('finalMarkerDot').setAttribute('cy', p2.y.toFixed(1));
+
+          const finalText = el('finalLabelText');
+          const finalRect = el('finalLabelRect');
+          const shortFinal = formatMetersShort(finalDist);
+          finalText.textContent = shortFinal;
+          const finalW = Math.max(34, Math.ceil(finalText.getComputedTextLength()) + 12);
+          let lx = p2.x + 8;
+          if(p2.x > 138) lx = p2.x - finalW - 8;
+          let ly = p2.y - 9;
+          if(ly < 4) ly = p2.y + 8;
+          finalRect.setAttribute('x', lx.toFixed(1));
+          finalRect.setAttribute('y', ly.toFixed(1));
+          finalRect.setAttribute('width', finalW);
+          finalText.setAttribute('x', (lx + finalW/2).toFixed(1));
+          finalText.setAttribute('y', (ly + 9).toFixed(1));
+          el('finalLabel').setAttribute('transform', `rotate(${-state.displayAngle} ${(lx + finalW/2).toFixed(1)} ${(ly + 9).toFixed(1)})`);
+        }else{
+          finalMarker.style.display = 'none';
+        }
+      }
+
       const aligned = Math.abs(angleDelta(0, rel)) < 12;
       wrap.classList.toggle('aligned', aligned);
 
       if(pick.s==='gps'){ setStatus('gps','GPS-Kurs'); el('navHint').textContent=''; }
       else { setStatus('compass','Kompass'); el('navHint').textContent=''; }
     }else{
+      const finalMarker = el('finalMarker');
+      if(finalMarker) finalMarker.style.display = 'none';
       setStatus('none','Richtung fehlt');
       el('navHint').textContent = state.compassGranted
         ? 'Losfahren, damit sich der Pfeil an der Bewegung ausrichtet.'
