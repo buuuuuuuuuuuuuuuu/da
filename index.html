@@ -309,10 +309,11 @@
   .nav-top{width:100%;text-align:center;padding-top:8px;}
 
   .compass{
-    position:relative;flex:0 0 auto;width:100%;min-height:min(72vw,330px);
+    position:relative;flex:0 0 auto;width:100%;min-height:min(66vw,300px);
+    margin-top:16px;
     display:flex;align-items:center;justify-content:center;
   }
-  .dial{position:relative;width:min(78vw,330px);aspect-ratio:1;}
+  .dial{position:relative;width:min(72vw,300px);aspect-ratio:1;}
   .ring{position:absolute;inset:0;}
   .ring svg{width:100%;height:100%;display:block;}
   .needle-wrap{
@@ -433,7 +434,7 @@
   }
 
   .target-line{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:8px;min-height:18px;}
-  .target-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 9px;border-radius:var(--r-pill);border:1px solid var(--hairline);font-size:10px;letter-spacing:.12em;text-transform:uppercase;background:color-mix(in srgb, var(--surface) 92%, transparent);}
+  .target-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:var(--r-pill);border:1px solid var(--hairline);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;background:color-mix(in srgb, var(--surface) 92%, transparent);}
   .target-pill::before{content:'';width:8px;height:8px;border-radius:50%;display:inline-block;background:currentColor;}
   .target-pill-final{color:#4DA3FF;border-color:rgba(77,163,255,.26);}
   .target-pill-intermediate{color:var(--accent);border-color:color-mix(in srgb, var(--accent) 35%, var(--hairline));}
@@ -454,7 +455,7 @@
   .target-line{max-width:min(92vw,560px);display:grid;gap:8px;justify-items:start;align-items:start;justify-content:center;}
   .target-line:empty{display:none;}
   .target-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center;}
-  .target-name{font-size:12px;line-height:1.3;max-width:min(62vw,360px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .target-name{font-size:13.5px;line-height:1.3;color:var(--fg);opacity:.82;max-width:min(60vw,340px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .readout{display:grid;gap:10px;justify-items:center;}
   .distance{margin-top:2px;}
   #navHint:empty{display:none;}
@@ -539,7 +540,6 @@
           <line x1="19" y1="5" x2="5" y2="19"/>
         </svg>
       </button>
-      <div class="eyebrow">Ziel</div>
 <div id="targetLine" class="target-line"></div>
     </div>
 
@@ -564,25 +564,29 @@
               <circle cx="100" cy="6" r="11" fill="var(--accent)" opacity="0.28"/>
               <circle cx="100" cy="6" r="4.5" fill="var(--accent)"/>
             </g>
-            <!-- zentrale Nadel: exakt zentriert (100,100), symmetrisch auf x=100,
-                 damit sie mit der Radarachse/dem Sweep fluchtet. Variante je Theme. -->
+            <!-- Barrieren als rote Querstriche im Sweep (mehrere möglich) -->
+            <g id="barrierMarks" style="display:none"></g>
+            <!-- weitere Routen-Wegpunkte auf den äußeren Ringen -->
+            <g id="routeMarkers"></g>
+            <!-- zentrale Nadel: Bounding-Box & Drehpunkt exakt auf (100,100) balanciert,
+                 damit sie mittig auf dem Radarzentrum sitzt (nicht darüber). Variante je Theme. -->
             <g class="center-needle">
-              <!-- Light / Grau: schlanker Kite -->
+              <!-- Light / Grau: klassische Kompassnadel -->
               <g class="nv nv-grey">
-                <path d="M100 73 L93.5 101 L106.5 101 Z" fill="var(--accent)"/>
-                <path d="M100 117 L95.5 101.5 L104.5 101.5 Z" fill="var(--muted)"/>
+                <path d="M100 66 L90 100 L110 100 Z" fill="var(--accent)"/>
+                <path d="M100 134 L95 100 L105 100 Z" fill="var(--muted)"/>
                 <circle cx="100" cy="100" r="4" fill="var(--surface)" stroke="var(--accent)" stroke-width="1.4"/>
               </g>
-              <!-- Dark / Neon: fetter Blockpfeil -->
+              <!-- Dark / Neon: fetter Pfeil, mittig balanciert -->
               <g class="nv nv-neon">
-                <path d="M100 66 L84 88 L116 88 Z" fill="var(--accent)"/>
-                <rect x="93" y="86" width="14" height="34" fill="var(--accent)"/>
-                <circle cx="100" cy="104" r="4.2" fill="var(--accent-2)"/>
+                <path d="M100 64 L79 95 L121 95 Z" fill="var(--accent)"/>
+                <rect x="92.5" y="95" width="15" height="41" fill="var(--accent)"/>
+                <circle cx="100" cy="100" r="4.5" fill="var(--accent-2)"/>
               </g>
-              <!-- Eco: reiner Outline-Pfeil -->
+              <!-- Eco: Outline-Nadel -->
               <g class="nv nv-eco">
-                <path d="M100 74 L92 102 L108 102 Z" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>
-                <line x1="100" y1="102" x2="100" y2="120" stroke="var(--accent)" stroke-width="2"/>
+                <path d="M100 68 L90 100 L110 100 Z" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>
+                <line x1="100" y1="100" x2="100" y2="132" stroke="var(--accent)" stroke-width="2"/>
                 <circle cx="100" cy="100" r="3" fill="none" stroke="var(--accent)" stroke-width="1.5"/>
               </g>
             </g>
@@ -682,7 +686,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = '2026.07.08.3';
+const APP_VERSION = '2026.07.08.5';
 
 /* ---------------- Geo-Mathe ---------------- */
 const R = 6371000; // m
@@ -722,6 +726,26 @@ function polylineCrosses(a, b, pts){
     if(segmentsIntersect(a, b, pts[i], pts[i+1])) return true;
   }
   return false;
+}
+// Bruchteil t∈[0,1] entlang a→b, an dem die Luftlinie das Segment p3-p4 kreuzt.
+function segmentCrossFraction(a, b, p3, p4){
+  const rX = b.lon - a.lon, rY = b.lat - a.lat;
+  const sX = p4.lon - p3.lon, sY = p4.lat - p3.lat;
+  const denom = rX * sY - rY * sX;
+  if(Math.abs(denom) < 1e-12) return null;
+  const qpX = p3.lon - a.lon, qpY = p3.lat - a.lat;
+  const t = (qpX * sY - qpY * sX) / denom;
+  const u = (qpX * rY - qpY * rX) / denom;
+  if(t >= 0 && t <= 1 && u >= 0 && u <= 1) return t;
+  return null;
+}
+function polylineCrossFraction(a, b, pts){
+  let best = null;
+  for(let i = 0; i < pts.length - 1; i++){
+    const t = segmentCrossFraction(a, b, pts[i], pts[i+1]);
+    if(t != null && (best == null || t < best)) best = t;
+  }
+  return best;
 }
 
 async function checkBarriers(pos, dest){
@@ -771,6 +795,7 @@ out geom tags;`;
 
     let hitWater = false, hitRail = false, hitMotorway = false;
     let waterWays = 0, waterRelations = 0, railWays = 0, motorwayWays = 0, levelCrossings = 0, bridgeWays = 0;
+    const barrierMarks = [];
     const direct = distance(pos.lat, pos.lon, dest.lat, dest.lon);
     const corridorM = Math.max(120, direct * 0.18);
     const candidates = [];
@@ -836,9 +861,9 @@ out geom tags;`;
         if(tags.railway === 'rail') railWays++;
         if(tags.highway === 'motorway' || tags.highway === 'motorway_link') motorwayWays++;
         if(tags.waterway || tags.natural === 'water') waterWays++;
-        if((tags.railway === 'rail') && crossesDirect) hitRail = true;
-        if((tags.highway === 'motorway' || tags.highway === 'motorway_link') && crossesDirect) hitMotorway = true;
-        if(((tags.waterway) || tags.natural === 'water') && crossesDirect) hitWater = true;
+        if((tags.railway === 'rail') && crossesDirect){ hitRail = true; const tt = polylineCrossFraction(pos, dest, pts); if(tt != null) barrierMarks.push({ type:'rail', t:tt }); }
+        if((tags.highway === 'motorway' || tags.highway === 'motorway_link') && crossesDirect){ hitMotorway = true; const tt = polylineCrossFraction(pos, dest, pts); if(tt != null) barrierMarks.push({ type:'motorway', t:tt }); }
+        if(((tags.waterway) || tags.natural === 'water') && crossesDirect){ hitWater = true; const tt = polylineCrossFraction(pos, dest, pts); if(tt != null) barrierMarks.push({ type:'water', t:tt }); }
         if(tags.bridge === 'yes' || tags.man_made === 'bridge' || tags.tunnel === 'yes'){
           bridgeWays++;
           const mid = pts[Math.floor(pts.length / 2)];
@@ -853,7 +878,7 @@ out geom tags;`;
         for(const member of element.members){
           if(member.type === 'way' && Array.isArray(member.geometry) && member.geometry.length >= 2){
             const pts = member.geometry.map(g => ({ lat: g.lat, lon: g.lon }));
-            if(polylineCrosses(pos, dest, pts)) hitWater = true;
+            if(polylineCrosses(pos, dest, pts)){ hitWater = true; const tt = polylineCrossFraction(pos, dest, pts); if(tt != null) barrierMarks.push({ type:'water', t:tt }); }
           }
         }
       }
@@ -876,6 +901,15 @@ out geom tags;`;
       if(!unique.has(key) || item.score < unique.get(key).score) unique.set(key, item);
     }
     state.crossingSuggestions = Array.from(unique.values()).sort((a,b)=>a.score-b.score).slice(0,5);
+    // Barriere-Marken (rote Querstriche) entlang der Luftlinie zum Ziel.
+    const mSeen = new Map();
+    for(const m of barrierMarks){
+      if(m.t < 0.02 || m.t > 0.99) continue;
+      const k = m.type + ':' + m.t.toFixed(3);
+      if(!mSeen.has(k)) mSeen.set(k, m);
+    }
+    state.barrierMarks = Array.from(mSeen.values()).sort((a,b)=>a.t-b.t).slice(0,6);
+    renderBarrierMarks();
     renderCrossingSuggestions();
     showBarrierAlert(hitWater, hitRail, hitMotorway);
     setBarrierDebug(`Barrieren-Check: ok · Elemente ${data.elements?.length || 0} · Wasser-Ways ${waterWays} · Wasser-Relationen ${waterRelations} · Bahn-Ways ${railWays} · Autobahn-Ways ${motorwayWays} · Querungen ${state.crossingSuggestions.length} · Treffer Wasser ${hitWater ? 'ja' : 'nein'} · Treffer Bahn ${hitRail ? 'ja' : 'nein'} · Treffer Autobahn ${hitMotorway ? 'ja' : 'nein'}`);
@@ -919,15 +953,59 @@ function setHint(text, holdMs = 0){
 function hintLocked(){
   return Date.now() < state.hintHoldUntil;
 }
-function activateFinalDestination(message=''){
-  if(!state.finalDest) return;
-  state.intermediateDest = null;
-  state.selectedCrossingKey = null;
-  state.crossingLegendMode = '';
+function activateFinalDestination(message=''){ clearRoute(message); }
+
+/* ---- Route aus gewählten Querungen (mehrere Wegpunkte möglich) ---- */
+function crossingToWaypoint(item){
+  return { lat:item.lat, lon:item.lon, name:item.name || crossingTypeLabel(item.type),
+           type:item.type, barrierType:item.barrierType, accessMode:item.accessMode || 'rideable', key:crossingKey(item) };
+}
+function orderedSelectedCrossings(){
+  const arr = Object.values(state.selectedCrossings);
+  if(state.pos){
+    arr.sort((a,b)=> distance(state.pos.lat,state.pos.lon,a.lat,a.lon) - distance(state.pos.lat,state.pos.lon,b.lat,b.lon));
+  }
+  return arr;
+}
+function rebuildRoute(){
+  const ordered = orderedSelectedCrossings().map(crossingToWaypoint);
+  if(ordered.length){
+    state.intermediateDest = ordered[0];
+    state.route = ordered.slice(1);
+    state.selectedCrossingKey = ordered[0].key;
+    state.crossingLegendMode = ordered[0].accessMode;
+    state.dest = { lat:ordered[0].lat, lon:ordered[0].lon, name:ordered[0].name };
+  }else{
+    state.intermediateDest = null;
+    state.route = [];
+    state.selectedCrossingKey = null;
+    state.crossingLegendMode = '';
+    if(state.finalDest) state.dest = { ...state.finalDest };
+  }
   state.crossingExpanded = false;
-  state.dest = { ...state.finalDest };
   renderNavChrome();
-  updateIntermediateActions(null);
+  renderBarrierMarks();
+  renderRouteMarkers();
+  updateIntermediateActions(state.intermediateDest ? Number.POSITIVE_INFINITY : null);
+}
+function toggleCrossing(item){
+  const k = crossingKey(item);
+  if(state.selectedCrossings[k]) delete state.selectedCrossings[k];
+  else state.selectedCrossings[k] = item;
+  setHint('');
+  rebuildRoute();
+}
+function advanceWaypoint(message=''){
+  // aktiven Wegpunkt (erreicht/übersprungen) entfernen → nächster oder Endziel
+  if(state.intermediateDest && state.intermediateDest.key){
+    delete state.selectedCrossings[state.intermediateDest.key];
+  }
+  rebuildRoute();
+  if(message) setHint(message, 4000);
+}
+function clearRoute(message=''){
+  state.selectedCrossings = {};
+  rebuildRoute();
   if(message) setHint(message, 4000);
 }
 
@@ -935,10 +1013,11 @@ function setRouteChip(){
   const line = el('targetLine');
   if(!line) return;
   if(state.intermediateDest && state.finalDest){
+    const more = state.route.length ? ` · +${state.route.length}` : '';
     line.innerHTML = `
       <div class="target-row">
         <span class="target-pill target-pill-intermediate">Zwischenziel</span>
-        <span class="target-name">${escHtml(state.intermediateDest.name)}</span>
+        <span class="target-name">${escHtml(state.intermediateDest.name)}${escHtml(more)}</span>
       </div>
       <div class="target-row">
         <span class="target-pill target-pill-final">Endziel</span>
@@ -950,6 +1029,76 @@ function setRouteChip(){
     line.innerHTML = '';
   }
 }
+
+/* Rote Querstriche der Barrieren im Sweep — sichtbar solange kein Zwischenziel aktiv ist. */
+function renderBarrierMarks(){
+  const g = el('barrierMarks');
+  if(!g) return;
+  const show = state.barrierMarks.length && !state.intermediateDest;
+  if(!show){ g.style.display = 'none'; g.innerHTML = ''; return; }
+  const R = 94, r0 = 16, half = 8.5;
+  let html = '';
+  for(const m of state.barrierMarks){
+    const r = r0 + m.t * (R - r0);
+    const y = (100 - r).toFixed(1);
+    html += `<line x1="${(100-half).toFixed(1)}" y1="${y}" x2="${(100+half).toFixed(1)}" y2="${y}" stroke="#FF3B30" stroke-width="3.4" stroke-linecap="round" opacity="0.92"/>`;
+  }
+  g.innerHTML = html;
+  g.style.display = '';
+}
+/* Weitere Wegpunkte der Route (nach dem aktiven) als Marker-Pool; Position setzt der Frame-Loop. */
+function renderRouteMarkers(){
+  const g = el('routeMarkers');
+  if(!g) return;
+  const sig = state.route.map(w=>w.key).join('|');
+  if(sig === state.routeSig) return;
+  state.routeSig = sig;
+  let html = '';
+  for(let i=0;i<state.route.length;i++){
+    html += `<g class="rm" style="display:none"><circle class="rm-halo" r="8" fill="var(--accent)" opacity="0.16"/><circle class="rm-dot" r="4" fill="var(--accent)"/></g>`;
+  }
+  g.innerHTML = html;
+}
+function hideSecondaryMarkers(){
+  const fm = el('finalMarker'); if(fm) fm.style.display='none';
+  const g = el('routeMarkers'); if(g) g.querySelectorAll('.rm').forEach(e=>e.style.display='none');
+}
+function positionSecondaryMarkers(pos, brg, dist){
+  const finalMarker = el('finalMarker');
+  const g = el('routeMarkers');
+  if(!(state.intermediateDest && state.finalDest)){ hideSecondaryMarkers(); return; }
+  const finalDist = distance(pos.lat,pos.lon,state.finalDest.lat,state.finalDest.lon);
+  const finalRel = Math.max(0, finalDist - dist);
+  const scale = Math.max(finalRel, dist*1.2, 600);
+  if(g){
+    const els = g.querySelectorAll('.rm');
+    els.forEach((e,i)=>{
+      const w = state.route[i];
+      if(!w){ e.style.display='none'; return; }
+      const wDist = distance(pos.lat,pos.lon,w.lat,w.lon);
+      const wBear = bearing(pos.lat,pos.lon,w.lat,w.lon);
+      const delta = angleDelta(brg, wBear);
+      const rel = Math.max(0, wDist - dist);
+      const p = radarPointFromDistanceAndAngle(rel, delta, scale, { minR:42, maxR:82 });
+      e.querySelector('.rm-halo').setAttribute('cx',p.x.toFixed(1));
+      e.querySelector('.rm-halo').setAttribute('cy',p.y.toFixed(1));
+      e.querySelector('.rm-dot').setAttribute('cx',p.x.toFixed(1));
+      e.querySelector('.rm-dot').setAttribute('cy',p.y.toFixed(1));
+      e.style.display='';
+    });
+  }
+  if(finalMarker){
+    const finalBearing = bearing(pos.lat,pos.lon,state.finalDest.lat,state.finalDest.lon);
+    const deltaFromActive = angleDelta(brg, finalBearing);
+    const p2 = radarPointFromDistanceAndAngle(finalRel, deltaFromActive, scale, { minR:58, maxR:88 });
+    finalMarker.style.display = '';
+    el('finalMarkerHalo').setAttribute('cx', p2.x.toFixed(1));
+    el('finalMarkerHalo').setAttribute('cy', p2.y.toFixed(1));
+    el('finalMarkerDot').setAttribute('cx', p2.x.toFixed(1));
+    el('finalMarkerDot').setAttribute('cy', p2.y.toFixed(1));
+  }
+}
+
 function renderCrossingSuggestions(){
   const panel = el('crossingPanel');
   const list = el('crossingList');
@@ -959,37 +1108,30 @@ function renderCrossingSuggestions(){
   if(!state.crossingSuggestions.length){
     panel.classList.remove('show');
     panel.classList.add('compact');
-    if(summary) summary.textContent = 'Querungen als Zwischenziel';
+    if(summary) summary.textContent = state.barrierMarks.length
+      ? `${state.barrierMarks.length} Barriere${state.barrierMarks.length>1?'n':''} erkannt`
+      : 'Querungen als Zwischenziel';
     if(toggle) toggle.textContent = 'Anzeigen';
     return;
   }
-  let hasFootOnly = false;
+  let hasFootOnly = false, selCount = 0;
   state.crossingSuggestions.forEach(item => {
+    const k = crossingKey(item);
+    const selected = !!state.selectedCrossings[k];
+    if(selected) selCount++;
     if(item.accessMode === 'foot_only') hasFootOnly = true;
     const btn = document.createElement('button');
-    btn.className = 'crossing-option' + (state.selectedCrossingKey === crossingKey(item) ? ' active' : '');
+    btn.className = 'crossing-option' + (selected ? ' active' : '');
     const accessText = item.accessMode === 'foot_only' ? '<strong>nur schiebend / zu Fuß</strong>' : 'mit Rad befahrbar';
-    btn.innerHTML = `<span><div class="crossing-name">${escHtml(item.name || crossingTypeLabel(item.type))}</div><div class="crossing-sub">${crossingTypeLabel(item.type)} · ${item.barrierType === 'rail' ? 'bei Bahnlinie' : (item.barrierType === 'motorway' ? 'bei Autobahn' : 'bei Gewässer')} · ${accessText}</div></span><span class="crossing-dist">+${formatMetersShort(item.detour)}</span>`;
-    btn.addEventListener('click', () => {
-      state.intermediateDest = { lat:item.lat, lon:item.lon, name:item.name || crossingTypeLabel(item.type) };
-      state.selectedCrossingKey = crossingKey(item);
-      state.dest = { ...state.intermediateDest };
-      state.crossingLegendMode = item.accessMode || 'rideable';
-      state.crossingExpanded = false;
-      setHint('');
-      setRouteChip();
-      renderCrossingSuggestions();
-      updateIntermediateActions(Number.POSITIVE_INFINITY);
-    });
+    const barrierTxt = item.barrierType === 'rail' ? 'bei Bahnlinie' : (item.barrierType === 'motorway' ? 'bei Autobahn' : 'bei Gewässer');
+    btn.innerHTML = `<span><div class="crossing-name">${escHtml(item.name || crossingTypeLabel(item.type))}</div><div class="crossing-sub">${crossingTypeLabel(item.type)} · ${barrierTxt} · ${accessText}</div></span><span class="crossing-dist">${selected ? '✓ ' : '+'}${formatMetersShort(item.detour)}</span>`;
+    btn.addEventListener('click', () => toggleCrossing(item));
     list.appendChild(btn);
   });
   if(summary){
-    const accessHint = state.selectedCrossingKey
-      ? (state.crossingLegendMode === 'foot_only' ? ' · nur schiebend' : ' · mit Rad fahrbar')
-      : (hasFootOnly ? ' · teils nur schiebend' : '');
-    summary.textContent = state.selectedCrossingKey
-      ? `${state.crossingSuggestions.length} Querungen · Zwischenziel gewählt${accessHint}`
-      : `${state.crossingSuggestions.length} Querungen als Zwischenziel${accessHint}`;
+    summary.textContent = selCount
+      ? `${state.crossingSuggestions.length} Querungen · ${selCount} gewählt`
+      : `${state.crossingSuggestions.length} Querungen wählbar${hasFootOnly ? ' · teils nur schiebend' : ''}`;
   }
   if(toggle) toggle.textContent = state.crossingExpanded ? 'Einklappen' : 'Anzeigen';
   panel.classList.add('show');
@@ -1090,6 +1232,10 @@ const state = {
   crossingSuggestions: [],
   selectedCrossingKey: null,
   crossingLegendMode: '',
+  route: [],
+  selectedCrossings: {},
+  barrierMarks: [],
+  routeSig: '',
   barrierSummary: '',
   barrierDebugText: '',
   barrierIsError: false,
@@ -1304,6 +1450,10 @@ function startNav(dest){
   state.intermediateDest = null;
   state.selectedCrossingKey = null;
   state.crossingLegendMode = '';
+  state.selectedCrossings = {};
+  state.route = [];
+  state.barrierMarks = [];
+  state.routeSig = '';
   state.barrierChecked = false;
   state.smoothHeading = null;
   state.displayAngle = 0;
@@ -1339,6 +1489,12 @@ function exitToSearch(){
   state.crossingSuggestions = [];
   state.selectedCrossingKey = null;
   state.crossingLegendMode = '';
+  state.selectedCrossings = {};
+  state.route = [];
+  state.barrierMarks = [];
+  state.routeSig = '';
+  renderBarrierMarks();
+  renderRouteMarkers();
   state.barrierChecked = false;
   state.barrierSummary='';
   updateIntermediateActions(null);
@@ -1358,9 +1514,9 @@ el('toggleCrossings').addEventListener('click', ()=>{
   state.crossingExpanded = !state.crossingExpanded;
   renderCrossingSuggestions();
 });
-el('clearIntermediate').addEventListener('click', ()=>{ activateFinalDestination('Zwischenziel entfernt · weiter zum Endziel.'); });
-el('intermediateDone').addEventListener('click', ()=>{ activateFinalDestination('Zwischenziel erreicht · weiter zum Endziel.'); });
-el('intermediateSkip').addEventListener('click', ()=>{ activateFinalDestination('Zwischenziel übersprungen · weiter zum Endziel.'); });
+el('clearIntermediate').addEventListener('click', ()=>{ clearRoute('Route entfernt · weiter zum Endziel.'); });
+el('intermediateDone').addEventListener('click', ()=>{ advanceWaypoint('Zwischenziel erreicht · weiter.'); });
+el('intermediateSkip').addEventListener('click', ()=>{ advanceWaypoint('Zwischenziel übersprungen · weiter.'); });
 el('barrierInfoBtn').addEventListener('click', openBarrierModal);
 el('barrierModalClose').addEventListener('click', closeBarrierModal);
 el('barrierModal').addEventListener('click', (e)=>{ if(e.target === el('barrierModal')) closeBarrierModal(); });
@@ -1685,7 +1841,7 @@ function frame(){
     const dist = distance(pos.lat,pos.lon,dest.lat,dest.lon);
     updateIntermediateActions(state.intermediateDest ? dist : null);
     if(state.intermediateDest && dist <= 35){
-      activateFinalDestination('Zwischenziel erreicht · weiter zum Endziel.');
+      advanceWaypoint('Zwischenziel erreicht · weiter.');
       // Nur diesen Frame überspringen (dist/brg beziehen sich noch aufs alte Ziel) —
       // der Loop muss zwingend weiterlaufen.
       requestAnimationFrame(frame);
@@ -1750,27 +1906,7 @@ function frame(){
       wrap.style.transform = `rotate(${state.displayAngle}deg)`;
       el('blipLabel').setAttribute('transform', `rotate(${-state.displayAngle} ${(blipX + blipW/2).toFixed(1)} ${(blipY + 10).toFixed(1)})`);
 
-      const finalMarker = el('finalMarker');
-      const finalDest = state.intermediateDest && state.finalDest ? state.finalDest : null;
-      if(finalMarker){
-        if(finalDest){
-          const finalDist = distance(pos.lat,pos.lon,finalDest.lat,finalDest.lon);
-          const finalBearing = bearing(pos.lat,pos.lon,finalDest.lat,finalDest.lon);
-          const deltaFromActive = angleDelta(brg, finalBearing);
-          const relativeDist = Math.max(0, finalDist - dist);
-          const p2 = radarPointFromDistanceAndAngle(relativeDist, deltaFromActive, Math.max(relativeDist, dist * 1.2, 600), { minR: 58, maxR: 88 });
-          finalMarker.style.display = '';
-          el('finalMarkerHalo').setAttribute('cx', p2.x.toFixed(1));
-          el('finalMarkerHalo').setAttribute('cy', p2.y.toFixed(1));
-          el('finalMarkerDot').setAttribute('cx', p2.x.toFixed(1));
-          el('finalMarkerDot').setAttribute('cy', p2.y.toFixed(1));
-          // Das Distanz-Label des Endziels ist per CSS (#finalLabel) bewusst ausgeblendet.
-          // Die frühere Pro-Frame-Vermessung (getComputedTextLength auf verstecktem
-          // SVG-Text) entfällt daher — sie war unnötig und auf iOS unzuverlässig.
-        }else{
-          finalMarker.style.display = 'none';
-        }
-      }
+      positionSecondaryMarkers(pos, brg, dist);
 
       const aligned = Math.abs(angleDelta(0, rel)) < 12;
       wrap.classList.toggle('aligned', aligned);
@@ -1789,8 +1925,7 @@ function frame(){
         }
       }
     }else{
-      const finalMarker = el('finalMarker');
-      if(finalMarker) finalMarker.style.display = 'none';
+      hideSecondaryMarkers();
       setStatus('none','Richtung unklar');
       state.smoothHeading = null;
       if(!hintLocked()){
