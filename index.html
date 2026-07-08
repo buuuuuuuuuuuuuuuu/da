@@ -11,68 +11,86 @@
 <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
 <link rel="icon" type="image/png" href="./favicon.png" />
 <meta name="color-scheme" content="dark light" />
-<meta name="theme-color" content="#04120A" />
+<meta name="theme-color" content="#0B0B12" />
 <title>da</title>
 <style>
   :root{
-    --bg:#04120A;
-    --surface:#0A1F14;
-    --surface-2:#123322;
-    --fg:#CFFFE6;
-    --accent:#6BFFB0;
-    --gps:#4ADE80;
-    --muted:#3E6E55;
-    --muted-2:#1E3E2C;
-    --hairline:rgba(107,255,176,.16);
-    --danger:#FF6B6B;
+    /* Default = Dark/Neon */
+    --bg:#0B0B12;
+    --surface:#14141F;
+    --surface-2:#1E1E2E;
+    --fg:#F2F3F7;
+    --accent:#CBFF3B;
+    --accent-2:#FF4D8D;
+    --gps:#CBFF3B;
+    --muted:#8A8CA0;
+    --muted-2:#26263A;
+    --hairline:#2C2C40;
+    --danger:#FF4D8D;
     --warn:#FFB454;
-    --glow:rgba(107,255,176,.4);
+    --glow:rgba(203,255,59,.40);
+    --r-lg:24px;
+    --r-sm:14px;
+    --r-pill:999px;
     --safe-t:env(safe-area-inset-top);
     --safe-b:env(safe-area-inset-bottom);
   }
+  /* Light = Graphit/Grau, harte Kanten */
   @media (prefers-color-scheme: light){
     :root:not([data-theme]){
-      --bg:#EFE9D8;
-      --surface:#E6DFC9;
-      --surface-2:#DCD4BA;
-      --fg:#2B2118;
-      --accent:#2B2118;
+      --bg:#E9EAEC;
+      --surface:#F4F5F7;
+      --surface-2:#DCDDE1;
+      --fg:#191A1D;
+      --accent:#2C2E33;
+      --accent-2:#2C2E33;
       --gps:#3E6B4F;
-      --muted:#A79B7E;
-      --muted-2:#D6CDAF;
-      --hairline:rgba(43,33,24,.16);
-      --danger:#B3261E;
+      --muted:#6E7176;
+      --muted-2:#CDCFD4;
+      --hairline:#C4C6CC;
+      --danger:#D24B41;
       --warn:#8A5A00;
-      --glow:rgba(43,33,24,.22);
+      --glow:transparent;
+      --r-lg:0px;
+      --r-sm:0px;
+      --r-pill:0px;
     }
   }
   :root[data-theme="light"]{
-    --bg:#EFE9D8;
-    --surface:#E6DFC9;
-    --surface-2:#DCD4BA;
-    --fg:#2B2118;
-    --accent:#2B2118;
+    --bg:#E9EAEC;
+    --surface:#F4F5F7;
+    --surface-2:#DCDDE1;
+    --fg:#191A1D;
+    --accent:#2C2E33;
+    --accent-2:#2C2E33;
     --gps:#3E6B4F;
-    --muted:#A79B7E;
-    --muted-2:#D6CDAF;
-    --hairline:rgba(43,33,24,.16);
-    --danger:#B3261E;
+    --muted:#6E7176;
+    --muted-2:#CDCFD4;
+    --hairline:#C4C6CC;
+    --danger:#D24B41;
     --warn:#8A5A00;
-    --glow:rgba(43,33,24,.22);
+    --glow:transparent;
+    --r-lg:0px;
+    --r-sm:0px;
+    --r-pill:0px;
   }
   :root[data-theme="dark"]{
-    --bg:#04120A;
-    --surface:#0A1F14;
-    --surface-2:#123322;
-    --fg:#CFFFE6;
-    --accent:#6BFFB0;
-    --gps:#4ADE80;
-    --muted:#3E6E55;
-    --muted-2:#1E3E2C;
-    --hairline:rgba(107,255,176,.16);
-    --danger:#FF6B6B;
+    --bg:#0B0B12;
+    --surface:#14141F;
+    --surface-2:#1E1E2E;
+    --fg:#F2F3F7;
+    --accent:#CBFF3B;
+    --accent-2:#FF4D8D;
+    --gps:#CBFF3B;
+    --muted:#8A8CA0;
+    --muted-2:#26263A;
+    --hairline:#2C2C40;
+    --danger:#FF4D8D;
     --warn:#FFB454;
-    --glow:rgba(107,255,176,.4);
+    --glow:rgba(203,255,59,.40);
+    --r-lg:24px;
+    --r-sm:14px;
+    --r-pill:999px;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{height:100%;margin:0;}
@@ -104,7 +122,7 @@
   #updateBanner button{
     background:var(--accent);color:var(--bg);font-weight:700;
     font-size:11px;letter-spacing:.06em;text-transform:uppercase;
-    border-radius:6px;padding:7px 14px;flex:0 0 auto;
+    border-radius:var(--r-sm);padding:7px 14px;flex:0 0 auto;
   }
   body.has-banner #search{padding-top:calc(var(--safe-t) + 62px);transition:padding-top .25s ease;}
   body.has-banner #nav{padding-top:calc(var(--safe-t) + 76px);transition:padding-top .25s ease;}
@@ -178,7 +196,7 @@
   .field{display:flex;gap:10px;}
   input[type=text]{
     flex:1;min-width:0;background:var(--surface);color:var(--fg);
-    border:1px solid var(--hairline);border-radius:10px;
+    border:1px solid var(--hairline);border-radius:var(--r-sm);
     padding:15px 16px;font-size:16px;
     font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
     outline:none;transition:border-color .15s ease;
@@ -187,7 +205,7 @@
   input::placeholder{color:var(--muted);}
   .btn-go{
     flex:0 0 auto;background:var(--accent);color:var(--bg);
-    border-radius:10px;padding:0 20px;font-size:14px;font-weight:700;
+    border-radius:var(--r-sm);padding:0 20px;font-size:14px;font-weight:700;
     letter-spacing:.04em;text-transform:uppercase;
     transition:opacity .15s ease,transform .08s ease;
   }
@@ -198,7 +216,7 @@
   .result{
     display:block;width:100%;text-align:left;
     background:var(--surface);border:1px solid var(--hairline);
-    border-radius:10px;padding:14px 16px;margin-bottom:10px;
+    border-radius:var(--r-sm);padding:14px 16px;margin-bottom:10px;
     transition:background .12s ease,transform .08s ease;
   }
   .result:active{background:var(--surface-2);transform:scale(.99);}
@@ -221,7 +239,7 @@
     font-family:ui-monospace,"SF Mono",Menlo,"Liberation Mono",monospace;
     font-size:11px;letter-spacing:.04em;
     background:var(--surface);border:1px solid var(--hairline);color:var(--muted);
-    border-radius:999px;padding:6px 13px;transition:all .12s ease;
+    border-radius:var(--r-pill);padding:6px 13px;transition:all .12s ease;
   }
   .chip:active{transform:scale(.96);}
   .chip.on{background:var(--accent);border-color:var(--accent);color:var(--bg);font-weight:700;}
@@ -229,7 +247,7 @@
   .fav{
     display:flex;align-items:center;gap:12px;width:100%;text-align:left;
     background:var(--surface);border:1px solid var(--hairline);
-    border-radius:10px;padding:13px 14px;margin-bottom:9px;
+    border-radius:var(--r-sm);padding:13px 14px;margin-bottom:9px;
     transition:background .12s ease,transform .08s ease;
   }
   .fav:active{background:var(--surface-2);transform:scale(.99);}
@@ -240,7 +258,7 @@
   .fav-tag{display:block;font-family:ui-monospace,"SF Mono",Menlo,"Liberation Mono",monospace;
     font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin-top:3px;}
   .fav-del{
-    flex:0 0 auto;width:30px;height:30px;border-radius:8px;
+    flex:0 0 auto;width:30px;height:30px;border-radius:var(--r-sm);
     display:flex;align-items:center;justify-content:center;
     color:var(--muted);font-size:16px;line-height:1;
     background:transparent;border:1px solid var(--hairline);
@@ -258,7 +276,7 @@
   #saveSheet.show{display:flex;}
   .sheet{
     width:100%;max-width:440px;background:var(--surface);
-    border-top-left-radius:18px;border-top-right-radius:18px;
+    border-top-left-radius:var(--r-lg);border-top-right-radius:var(--r-lg);
     border:1px solid var(--hairline);border-bottom:none;
     padding:22px 22px calc(22px + var(--safe-b));
   }
@@ -272,12 +290,12 @@
     font-family:ui-monospace,"SF Mono",Menlo,"Liberation Mono",monospace;
     font-size:13px;letter-spacing:.03em;
     background:var(--bg);border:1px solid var(--hairline);color:var(--fg);
-    border-radius:10px;padding:14px;transition:all .12s ease;
+    border-radius:var(--r-sm);padding:14px;transition:all .12s ease;
   }
   .tag-opt.on{background:var(--accent);border-color:var(--accent);color:var(--bg);font-weight:700;}
   .sheet-actions{display:flex;gap:10px;}
   .sheet-actions .btn-ghost{flex:1;justify-content:center;text-align:center;}
-  .sheet-actions .btn-go{flex:1;padding:12px 0;text-align:center;border-radius:8px;}
+  .sheet-actions .btn-go{flex:1;padding:12px 0;text-align:center;border-radius:var(--r-sm);}
 
   .spinner{
     width:16px;height:16px;border:2px solid var(--hairline);
@@ -305,6 +323,23 @@
   .needle-wrap .radar-focus{transition:filter .3s ease;filter:drop-shadow(0 0 0 rgba(0,0,0,0));}
   .needle-wrap.aligned .radar-focus{filter:drop-shadow(0 0 10px var(--glow));}
 
+  /* Mittelnadel: eine Variante je Theme, alle exakt auf x=100 zentriert. */
+  .center-needle .nv{display:none;}
+  .center-needle .nv-neon{display:block;}
+  :root[data-theme="light"] .center-needle .nv-neon{display:none;}
+  :root[data-theme="light"] .center-needle .nv-grey{display:block;}
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme]) .center-needle .nv-neon{display:none;}
+    :root:not([data-theme]) .center-needle .nv-grey{display:block;}
+  }
+  /* Sparmodus/Eco überschreibt jede Theme-Nadel. */
+  body.power-saver .center-needle .nv-grey,
+  body.power-saver .center-needle .nv-neon{display:none;}
+  body.power-saver .center-needle .nv-eco{display:block;}
+
+  /* SVG-Label-Ecken folgen dem Theme-Radius. */
+  #blipLabelRect,#finalLabelRect{rx:var(--r-sm);}
+
   .readout{width:100%;text-align:center;}
   .distance{font-size:50px;font-weight:700;letter-spacing:-.01em;color:var(--accent);line-height:1;}
   .distance .unit{font-size:20px;color:var(--muted);margin-left:6px;font-weight:700;}
@@ -314,12 +349,12 @@
   .dot.compass{background:var(--accent);}
   .dot.none{background:var(--danger);}
   #statusDot{width:8px;height:8px;flex:0 0 8px;}
-  .crossing-panel{display:none;margin:12px auto 0;max-width:320px;background:var(--surface);border:1px solid var(--hairline);border-radius:10px;padding:10px 10px 8px;}
+  .crossing-panel{display:none;width:100%;margin:12px auto 0;background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r-lg);padding:10px 10px 8px;}
   .crossing-panel.show{display:block;}
   .crossing-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;}
   .crossing-title{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
   .crossing-list{display:grid;gap:8px;}
-  .crossing-option{width:100%;display:flex;justify-content:space-between;gap:10px;align-items:flex-start;padding:10px;border-radius:8px;border:1px solid var(--hairline);background:var(--bg);text-align:left;}
+  .crossing-option{width:100%;display:flex;justify-content:space-between;gap:10px;align-items:flex-start;padding:10px;border-radius:var(--r-sm);border:1px solid var(--hairline);background:var(--bg);text-align:left;}
   .crossing-option.active{border-color:var(--accent);}
   .crossing-name{font-size:13px;font-weight:700;line-height:1.35;}
   .crossing-sub{font-size:11.5px;color:var(--muted);margin-top:3px;line-height:1.35;font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;}
@@ -337,7 +372,7 @@
     font-family:ui-monospace,"SF Mono",Menlo,"Liberation Mono",monospace;
     font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
     background:var(--surface);border:1px solid var(--hairline);color:var(--muted);
-    border-radius:999px;padding:8px 13px;transition:background .12s ease,border-color .12s ease,color .12s ease,transform .08s ease;}
+    border-radius:var(--r-pill);padding:8px 13px;transition:background .12s ease,border-color .12s ease,color .12s ease,transform .08s ease;}
   .power-chip:active{transform:scale(.96);}
   .power-chip .power-dot{width:7px;height:7px;border-radius:50%;background:var(--muted-2);flex:0 0 auto;transition:background .12s ease;}
   .power-chip.on{border-color:var(--accent);color:var(--accent);}
@@ -345,14 +380,29 @@
   .power-chip.unavailable{opacity:.5;}
   .power-chip[disabled]{pointer-events:none;}
   /* Akkusparmodus: rein visuell sparsamer — kein Glow, leicht gedimmt. */
-  body.power-saver{--glow:transparent;}
+  /* Sparmodus = Eco: OLED-Schwarz, minimale leuchtende Pixel, harte Kanten. */
+  body.power-saver{
+    --bg:#000000;
+    --surface:#000000;
+    --surface-2:#0A0A0A;
+    --fg:#C7C9C7;
+    --accent:#3E8F63;
+    --accent-2:#3E8F63;
+    --gps:#3E8F63;
+    --muted:#5F625F;
+    --muted-2:#161616;
+    --hairline:#242424;
+    --danger:#7A3B37;
+    --warn:#7A5A2A;
+    --glow:transparent;
+    --r-lg:0px;
+    --r-sm:0px;
+    --r-pill:0px;
+  }
   body.power-saver .needle-wrap.aligned .radar-focus{filter:none;}
-  body.power-saver .distance{opacity:.88;}
-  body.power-saver .radar-focus{opacity:.82;}
-  body.power-saver .ring svg{opacity:.7;}
   .btn-ghost{
     background:var(--surface);border:1px solid var(--hairline);
-    border-radius:8px;padding:12px 18px;font-size:12.5px;font-weight:600;color:var(--fg);
+    border-radius:var(--r-sm);padding:12px 18px;font-size:12.5px;font-weight:600;color:var(--fg);
     letter-spacing:.04em;text-transform:uppercase;
     transition:background .12s ease,transform .08s ease;
   }
@@ -362,7 +412,7 @@
   .btn-ghost[disabled]{opacity:.6;pointer-events:none;}
 
     .barrier-info-btn{width:100%;display:flex;align-items:center;gap:10px;justify-content:center;
-    min-height:48px;padding:12px 14px;border-radius:16px;border:1px solid var(--hairline);
+    min-height:48px;padding:12px 14px;border-radius:var(--r-lg);border:1px solid var(--hairline);
     background:color-mix(in srgb, var(--surface) 92%, transparent);color:var(--warn);
     font-size:11px;letter-spacing:.12em;text-transform:uppercase;}
   .barrier-info-btn .dot{width:10px;height:10px;border-radius:50%;background:currentColor;display:inline-block;flex:none;}
@@ -370,12 +420,12 @@
   .modal-backdrop{position:fixed;inset:0;z-index:60;background:rgba(10,12,10,.38);display:none;align-items:flex-end;justify-content:center;padding:18px;}
   .modal-backdrop.show{display:flex;}
   .modal-card{width:min(100%,560px);max-height:min(78dvh,700px);overflow:auto;background:var(--surface);
-    border:1px solid var(--hairline);border-radius:24px;box-shadow:0 18px 48px rgba(0,0,0,.18);padding:16px 16px calc(16px + var(--safe-b));}
+    border:1px solid var(--hairline);border-radius:var(--r-lg);box-shadow:0 18px 48px rgba(0,0,0,.18);padding:16px 16px calc(16px + var(--safe-b));}
   .modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;}
   .modal-head h2{font-size:18px;letter-spacing:.04em;text-transform:uppercase;color:var(--fg);}
   .modal-body{display:grid;gap:12px;}
   .modal-summary{font-size:13px;line-height:1.45;color:var(--fg);}
-  .modal-debug{padding:12px 14px;border-radius:14px;background:var(--surface-2);border:1px solid var(--hairline);
+  .modal-debug{padding:12px 14px;border-radius:var(--r-sm);background:var(--surface-2);border:1px solid var(--hairline);
     color:var(--muted);font-size:11px;line-height:1.5;white-space:pre-wrap;word-break:break-word;}
   body.modal-open{overflow:hidden;}
 @media (prefers-reduced-motion:reduce){
@@ -383,7 +433,7 @@
   }
 
   .target-line{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:8px;min-height:18px;}
-  .target-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 9px;border-radius:999px;border:1px solid var(--hairline);font-size:10px;letter-spacing:.12em;text-transform:uppercase;background:color-mix(in srgb, var(--surface) 92%, transparent);}
+  .target-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 9px;border-radius:var(--r-pill);border:1px solid var(--hairline);font-size:10px;letter-spacing:.12em;text-transform:uppercase;background:color-mix(in srgb, var(--surface) 92%, transparent);}
   .target-pill::before{content:'';width:8px;height:8px;border-radius:50%;display:inline-block;background:currentColor;}
   .target-pill-final{color:#4DA3FF;border-color:rgba(77,163,255,.26);}
   .target-pill-intermediate{color:var(--accent);border-color:color-mix(in srgb, var(--accent) 35%, var(--hairline));}
@@ -449,9 +499,9 @@
       <div class="brand">
         <span class="brand-mark">
           <svg viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="12" r="10" stroke="#3E6E55" stroke-width="1.2"/>
-            <circle cx="12" cy="12" r="6"  stroke="#3E6E55" stroke-width="1.2"/>
-            <circle cx="12" cy="6" r="1.8" fill="#6BFFB0"/>
+            <circle cx="12" cy="12" r="10" stroke="var(--muted)" stroke-width="1.2"/>
+            <circle cx="12" cy="12" r="6"  stroke="var(--muted)" stroke-width="1.2"/>
+            <circle cx="12" cy="6" r="1.8" fill="var(--accent)"/>
           </svg>
         </span>
         <span class="brand-name">da</span>
@@ -514,10 +564,27 @@
               <circle cx="100" cy="6" r="11" fill="var(--accent)" opacity="0.28"/>
               <circle cx="100" cy="6" r="4.5" fill="var(--accent)"/>
             </g>
-            <!-- zentrale Kompassnadel: auf die Mittelachse des Radar-Streifens ausgerichtet -->
-            <g class="center-needle" opacity="0.78">
-              <path d="M100 100 L100 82 L108 98 Z" fill="var(--accent)"/>
-              <path d="M100 100 L100 110 L93 99 Z" fill="var(--muted)" opacity="0.88"/>
+            <!-- zentrale Nadel: exakt zentriert (100,100), symmetrisch auf x=100,
+                 damit sie mit der Radarachse/dem Sweep fluchtet. Variante je Theme. -->
+            <g class="center-needle">
+              <!-- Light / Grau: schlanker Kite -->
+              <g class="nv nv-grey">
+                <path d="M100 73 L93.5 101 L106.5 101 Z" fill="var(--accent)"/>
+                <path d="M100 117 L95.5 101.5 L104.5 101.5 Z" fill="var(--muted)"/>
+                <circle cx="100" cy="100" r="4" fill="var(--surface)" stroke="var(--accent)" stroke-width="1.4"/>
+              </g>
+              <!-- Dark / Neon: fetter Blockpfeil -->
+              <g class="nv nv-neon">
+                <path d="M100 66 L84 88 L116 88 Z" fill="var(--accent)"/>
+                <rect x="93" y="86" width="14" height="34" fill="var(--accent)"/>
+                <circle cx="100" cy="104" r="4.2" fill="var(--accent-2)"/>
+              </g>
+              <!-- Eco: reiner Outline-Pfeil -->
+              <g class="nv nv-eco">
+                <path d="M100 74 L92 102 L108 102 Z" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>
+                <line x1="100" y1="102" x2="100" y2="120" stroke="var(--accent)" stroke-width="2"/>
+                <circle cx="100" cy="100" r="3" fill="none" stroke="var(--accent)" stroke-width="1.5"/>
+              </g>
             </g>
             <!-- Distanz-Tag am Blip, bleibt per Gegenrotation aufrecht -->
             <g id="blipLabel">
@@ -615,7 +682,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = '2026.07.08.2';
+const APP_VERSION = '2026.07.08.3';
 
 /* ---------------- Geo-Mathe ---------------- */
 const R = 6371000; // m
@@ -1036,6 +1103,21 @@ let wakeWanted = false;
 let saverOn = false;
 let releaseWakeLock = async () => {};
 let applyWake = async () => {};
+
+// Status-Bar-Farbe folgt Theme + Sparmodus (Eco = Schwarz).
+function applyMetaThemeColor(){
+  const m = document.querySelector('meta[name="theme-color"]');
+  if(!m) return;
+  let color;
+  if(document.body.classList.contains('power-saver')){
+    color = '#000000';
+  }else{
+    const t = document.documentElement.getAttribute('data-theme');
+    const dark = t ? t === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+    color = dark ? '#0B0B12' : '#E9EAEC';
+  }
+  m.setAttribute('content', color);
+}
 
 const GPS_SWITCH_ON  = 1.2;
 const GPS_SWITCH_OFF = 0.7;
@@ -1826,6 +1908,7 @@ if('serviceWorker' in navigator){
 
   function applySaver(){
     document.body.classList.toggle('power-saver', saverOn);
+    applyMetaThemeColor();
     const chip = el('saverToggle');
     if(chip){ chip.classList.toggle('on', saverOn); chip.setAttribute('aria-pressed', saverOn ? 'true' : 'false'); }
   }
@@ -1859,8 +1942,7 @@ if('serviceWorker' in navigator){
     }
     const isDark = theme === null ? systemDark.matches : theme === 'dark';
     toggleBtn.setAttribute('aria-label', isDark ? 'Zu Light Mode wechseln' : 'Zu Dark Mode wechseln');
-    const metaTheme = document.querySelector('meta[name="theme-color"]');
-    if(metaTheme) metaTheme.setAttribute('content', isDark ? '#04120A' : '#EFE9D8');
+    applyMetaThemeColor();
   }
 
   toggleBtn.addEventListener('click', ()=>{
