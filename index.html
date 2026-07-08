@@ -331,7 +331,25 @@
     font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;}
 
   .nav-actions{width:100%;display:flex;gap:10px;justify-content:center;
-    margin-top:auto;padding:18px 0 calc(34px + var(--safe-b));}
+    padding:14px 0 calc(30px + var(--safe-b));}
+  .power-row{width:100%;display:flex;gap:8px;justify-content:center;margin-top:auto;padding:6px 0 0;}
+  .power-chip{display:inline-flex;align-items:center;gap:7px;
+    font-family:ui-monospace,"SF Mono",Menlo,"Liberation Mono",monospace;
+    font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
+    background:var(--surface);border:1px solid var(--hairline);color:var(--muted);
+    border-radius:999px;padding:8px 13px;transition:background .12s ease,border-color .12s ease,color .12s ease,transform .08s ease;}
+  .power-chip:active{transform:scale(.96);}
+  .power-chip .power-dot{width:7px;height:7px;border-radius:50%;background:var(--muted-2);flex:0 0 auto;transition:background .12s ease;}
+  .power-chip.on{border-color:var(--accent);color:var(--accent);}
+  .power-chip.on .power-dot{background:var(--accent);}
+  .power-chip.unavailable{opacity:.5;}
+  .power-chip[disabled]{pointer-events:none;}
+  /* Akkusparmodus: rein visuell sparsamer — kein Glow, leicht gedimmt. */
+  body.power-saver{--glow:transparent;}
+  body.power-saver .needle-wrap.aligned .radar-focus{filter:none;}
+  body.power-saver .distance{opacity:.88;}
+  body.power-saver .radar-focus{opacity:.82;}
+  body.power-saver .ring svg{opacity:.7;}
   .btn-ghost{
     background:var(--surface);border:1px solid var(--hairline);
     border-radius:8px;padding:12px 18px;font-size:12.5px;font-weight:600;color:var(--fg);
@@ -552,6 +570,15 @@
       <div id="navHint" class="hint"></div>
 </div>
 
+    <div id="powerRow" class="power-row">
+      <button id="wakeToggle" class="power-chip" type="button" aria-pressed="false">
+        <span class="power-dot"></span><span id="wakeToggleText">Display an</span>
+      </button>
+      <button id="saverToggle" class="power-chip" type="button" aria-pressed="false">
+        <span class="power-dot"></span><span>Sparmodus</span>
+      </button>
+    </div>
+
     <div class="nav-actions">
       <button id="enableCompass" class="btn-ghost accent hide">Kompass aktivieren</button>
       <button id="saveFav" class="btn-ghost">Speichern</button>
@@ -588,7 +615,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = '2026.07.08.1';
+const APP_VERSION = '2026.07.08.2';
 
 /* ---------------- Geo-Mathe ---------------- */
 const R = 6371000; // m
@@ -808,8 +835,13 @@ function renderNavChrome(){
 function updateIntermediateActions(dist){
   const box = el('intermediateActions');
   if(!box) return;
-  const show = !!(state.intermediateDest && Number.isFinite(dist) && dist <= 50);
-  box.classList.toggle('hide', !show);
+  const active = !!state.intermediateDest;
+  box.classList.toggle('hide', !active);
+  // „Überspringen" ist bei aktivem Zwischenziel immer erreichbar;
+  // „Zwischenziel erreicht" nur, wenn man wirklich nah dran ist.
+  const near = active && Number.isFinite(dist) && dist <= 50;
+  const done = el('intermediateDone');
+  if(done) done.classList.toggle('hide', !near);
 }
 /* Hinweistext mit optionaler Haltezeit — der Frame-Loop überschreibt
    navHint sonst in jedem Frame und Meldungen wären nie sichtbar. */
@@ -996,6 +1028,14 @@ const state = {
   barrierIsError: false,
   hintHoldUntil: 0,
 };
+
+/* Laufzeitvariablen für „Display anlassen" / Sparmodus.
+   Zuweisung der Funktionen erfolgt im Power-IIFE weiter unten. */
+let wakeLock = null;
+let wakeWanted = false;
+let saverOn = false;
+let releaseWakeLock = async () => {};
+let applyWake = async () => {};
 
 const GPS_SWITCH_ON  = 1.2;
 const GPS_SWITCH_OFF = 0.7;
@@ -1202,11 +1242,15 @@ function startNav(dest){
   syncBarrierUI();
   show('nav');
   closeBarrierModal();
+  startFrameLoop();
+  if(wakeWanted) applyWake();
   requestCompass().finally(startGeolocation);
 }
 
-el('changeDest').addEventListener('click', ()=>{
+function exitToSearch(){
   if(state.watchId!==null){ navigator.geolocation.clearWatch(state.watchId); state.watchId=null; }
+  stopFrameLoop();
+  releaseWakeLock();
   state.dest = null;
   state.finalDest = null;
   state.intermediateDest = null;
@@ -1223,7 +1267,9 @@ el('changeDest').addEventListener('click', ()=>{
   resultsEl.innerHTML=''; note.textContent=''; qInput.value = '';
   closeBarrierModal(); show('search'); qInput.focus();
   renderFavorites();
-});
+}
+
+el('changeDest').addEventListener('click', exitToSearch);
 
 el('toggleCrossings').addEventListener('click', ()=>{
   if(!state.crossingSuggestions.length) return;
@@ -1238,25 +1284,7 @@ el('barrierModalClose').addEventListener('click', closeBarrierModal);
 el('barrierModal').addEventListener('click', (e)=>{ if(e.target === el('barrierModal')) closeBarrierModal(); });
 document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') closeBarrierModal(); });
 
-el('closeNavBtn').addEventListener('click', ()=>{
-  if(state.watchId!==null){ navigator.geolocation.clearWatch(state.watchId); state.watchId=null; }
-  state.dest = null;
-  state.finalDest = null;
-  state.intermediateDest = null;
-  state.crossingSuggestions = [];
-  state.selectedCrossingKey = null;
-  state.crossingLegendMode = '';
-  state.barrierChecked = false;
-  state.barrierSummary='';
-  updateIntermediateActions(null);
-  hideBarrierError();
-  setBarrierDebug('');
-  syncBarrierUI();
-  renderNavChrome();
-  resultsEl.innerHTML=''; note.textContent=''; qInput.value = '';
-  closeBarrierModal(); show('search'); qInput.focus();
-  renderFavorites();
-});
+el('closeNavBtn').addEventListener('click', exitToSearch);
 
 el('reloadTopBtn').addEventListener('click', ()=>{
   const url = location.pathname + '?_=' + Date.now();
@@ -1544,6 +1572,11 @@ function setStatus(kind, text){
 /* ---------------- Render-Loop ---------------- */
 const reduceMotion = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
 
+// Loop läuft nur während der Navigation — im Suchscreen spart das Akku.
+let frameRunning = false;
+function startFrameLoop(){ if(frameRunning) return; frameRunning = true; requestAnimationFrame(frame); }
+function stopFrameLoop(){ frameRunning = false; }
+
 function radarPointFromDistanceAndAngle(dist, relAngle, maxDist, opts = {}){
   const { minR = 14, maxR = 94 } = opts;
   const clamped = Math.max(0, Math.min(1, dist / Math.max(1, maxDist)));
@@ -1563,6 +1596,7 @@ function fmtDistance(m){
 }
 
 function frame(){
+  if(!frameRunning) return;
   const { dest, pos } = state;
 
   if(dest && pos){
@@ -1696,7 +1730,7 @@ function frame(){
 
   requestAnimationFrame(frame);
 }
-requestAnimationFrame(frame);
+// Loop wird über startFrameLoop() beim Navigationsstart gestartet.
 
 /* ---------------- Versions-Check ---------------- */
 async function checkVersion(){
@@ -1731,12 +1765,91 @@ if('serviceWorker' in navigator){
   });
 }
 
+/* ---------------- Display anlassen (Wake Lock) + Sparmodus ---------------- */
+(function(){
+  const SAVER_KEY = 'da.saver';
+  const WAKE_KEY  = 'da.wake';
+  const wakeSupported = ('wakeLock' in navigator);
+
+  function setWakeChip(){
+    const chip = el('wakeToggle');
+    const txt  = el('wakeToggleText');
+    if(!chip) return;
+    if(!wakeSupported){
+      chip.classList.remove('on');
+      chip.classList.add('unavailable');
+      chip.setAttribute('aria-pressed','false');
+      if(txt) txt.textContent = 'Display · n/v';
+      return;
+    }
+    chip.classList.toggle('on', wakeWanted);
+    chip.setAttribute('aria-pressed', wakeWanted ? 'true' : 'false');
+    if(txt) txt.textContent = wakeWanted ? 'Display bleibt an' : 'Display an';
+  }
+
+  async function acquireWakeLock(){
+    if(!wakeSupported || document.visibilityState !== 'visible') return;
+    try{
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', ()=>{ wakeLock = null; });
+    }catch(_){ wakeLock = null; }
+  }
+
+  // global sichtbar für exitToSearch()/startNav()
+  releaseWakeLock = async function(){
+    try{ if(wakeLock) await wakeLock.release(); }catch(_){}
+    wakeLock = null;
+  };
+  applyWake = async function(){
+    if(wakeWanted && !wakeLock) await acquireWakeLock();
+    else if(!wakeWanted && wakeLock) await releaseWakeLock();
+    setWakeChip();
+  };
+
+  el('wakeToggle').addEventListener('click', async ()=>{
+    if(!wakeSupported){
+      setHint('„Display anlassen" wird von diesem Gerät/Browser nicht unterstützt.', 4000);
+      return;
+    }
+    wakeWanted = !wakeWanted;
+    try{ localStorage.setItem(WAKE_KEY, wakeWanted ? '1' : '0'); }catch(_){}
+    await applyWake();
+    if(wakeWanted && !wakeLock){
+      setHint('Display ließ sich nicht dauerhaft aktivieren.', 4000);
+    }
+  });
+
+  // iOS gibt den Wake Lock beim Wegblenden frei — nach Rückkehr neu anfordern.
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState === 'visible' && wakeWanted && !wakeLock && frameRunning) applyWake();
+  });
+
+  function applySaver(){
+    document.body.classList.toggle('power-saver', saverOn);
+    const chip = el('saverToggle');
+    if(chip){ chip.classList.toggle('on', saverOn); chip.setAttribute('aria-pressed', saverOn ? 'true' : 'false'); }
+  }
+  el('saverToggle').addEventListener('click', ()=>{
+    saverOn = !saverOn;
+    try{ localStorage.setItem(SAVER_KEY, saverOn ? '1' : '0'); }catch(_){}
+    applySaver();
+  });
+
+  // gespeicherte Zustände laden
+  try{ saverOn = localStorage.getItem(SAVER_KEY) === '1'; }catch(_){}
+  try{ wakeWanted = wakeSupported && localStorage.getItem(WAKE_KEY) === '1'; }catch(_){}
+  applySaver();
+  setWakeChip();
+})();
+
 /* ---------------- Theme Toggle ---------------- */
 (function(){
+  const THEME_KEY = 'da.theme';
   const root = document.documentElement;
   const toggleBtn = document.getElementById('themeToggle');
   const systemDark = window.matchMedia('(prefers-color-scheme: dark)');
   let theme = null; // null = folgt Systemeinstellung
+  try{ const s = localStorage.getItem(THEME_KEY); if(s === 'light' || s === 'dark') theme = s; }catch(_){}
 
   function applyTheme(){
     if(theme === null){
@@ -1753,6 +1866,7 @@ if('serviceWorker' in navigator){
   toggleBtn.addEventListener('click', ()=>{
     const currentlyDark = theme === null ? systemDark.matches : theme === 'dark';
     theme = currentlyDark ? 'light' : 'dark';
+    try{ localStorage.setItem(THEME_KEY, theme); }catch(_){}
     applyTheme();
   });
 

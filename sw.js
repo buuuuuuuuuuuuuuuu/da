@@ -1,4 +1,4 @@
-const CACHE='da-shell-2026.07.08.1';
+const CACHE='da-shell-2026.07.08.2';
 const SHELL=['./','./index.html','./manifest.json','./version.json','./icon-192.png','./icon-512.png','./apple-touch-icon.png','./favicon.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).catch(()=>{}));self.skipWaiting();});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));self.clients.claim();});
