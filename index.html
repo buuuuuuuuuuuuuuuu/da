@@ -289,9 +289,6 @@
   /* ---------- Nav ---------- */
   #nav{align-items:center;justify-content:flex-start;padding:calc(var(--safe-t) + 22px) 22px 0;overflow-y:auto;-webkit-overflow-scrolling:touch;}
   .nav-top{width:100%;text-align:center;padding-top:8px;}
-  .dest-name{font-size:16px;font-weight:700;margin-top:6px;line-height:1.35;
-    max-width:90%;margin-left:auto;margin-right:auto;
-    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
 
   .compass{
     position:relative;flex:0 0 auto;width:100%;min-height:min(72vw,330px);
@@ -311,20 +308,12 @@
   .readout{width:100%;text-align:center;}
   .distance{font-size:50px;font-weight:700;letter-spacing:-.01em;color:var(--accent);line-height:1;}
   .distance .unit{font-size:20px;color:var(--muted);margin-left:6px;font-weight:700;}
-  .status-inline{display:inline-flex;align-items:center;justify-content:center;gap:8px;margin-top:6px;color:var(--muted);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;}
+  .status-inline{display:inline-flex;align-items:center;justify-content:center;gap:8px;margin:2px auto 0;color:var(--muted);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;}
   .dot{width:6px;height:6px;border-radius:50%;background:var(--muted);flex:0 0 auto;}
   .dot.gps{background:var(--gps);}
   .dot.compass{background:var(--accent);}
   .dot.none{background:var(--danger);}
-
-  .alert{
-    display:inline-flex;align-items:center;gap:7px;margin-top:10px;
-    background:var(--surface);border:1px solid var(--warn);
-    border-radius:6px;padding:6px 12px;font-size:11.5px;color:var(--warn);
-    letter-spacing:.03em;max-width:280px;
-  }
-  .alert.hide{display:none;}
-  .alert .dot{background:var(--warn);}
+  #statusDot{width:8px;height:8px;flex:0 0 8px;}
   .crossing-panel{display:none;margin:12px auto 0;max-width:320px;background:var(--surface);border:1px solid var(--hairline);border-radius:10px;padding:10px 10px 8px;}
   .crossing-panel.show{display:block;}
   .crossing-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;}
@@ -335,11 +324,6 @@
   .crossing-name{font-size:13px;font-weight:700;line-height:1.35;}
   .crossing-sub{font-size:11.5px;color:var(--muted);margin-top:3px;line-height:1.35;font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;}
   .crossing-dist{font-size:11px;color:var(--accent);letter-spacing:.06em;white-space:nowrap;padding-top:2px;}
-  .route-chip{display:none;align-items:center;justify-content:center;gap:7px;margin-top:10px;font-size:11px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;}
-  .route-chip.show{display:inline-flex;}
-  .crossing-badge{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:6px 10px;border-radius:999px;border:1px solid var(--hairline);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);}
-  .crossing-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);}
-  .crossing-badge.foot-only .dot{background:var(--warn);}
   .crossing-sub strong{font-weight:700;color:var(--fg);font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;}
 
   .hint{color:var(--muted);font-size:12.5px;line-height:1.5;margin-top:14px;
@@ -361,7 +345,7 @@
 
     .barrier-info-btn{width:100%;display:flex;align-items:center;gap:10px;justify-content:center;
     min-height:48px;padding:12px 14px;border-radius:16px;border:1px solid var(--hairline);
-    background:color-mix(in srgb, var(--surface) 92%, transparent);color:var(--warning);
+    background:color-mix(in srgb, var(--surface) 92%, transparent);color:var(--warn);
     font-size:11px;letter-spacing:.12em;text-transform:uppercase;}
   .barrier-info-btn .dot{width:10px;height:10px;border-radius:50%;background:currentColor;display:inline-block;flex:none;}
   .barrier-info-btn.hide{display:none;}
@@ -386,53 +370,12 @@
   .target-pill-final{color:#4DA3FF;border-color:rgba(77,163,255,.26);}
   .target-pill-intermediate{color:var(--accent);border-color:color-mix(in srgb, var(--accent) 35%, var(--hairline));}
   .target-name{font-size:11px;letter-spacing:.04em;color:var(--muted);}
-  #routeChip{display:none !important;}
   .crossing-panel.compact #crossingList{display:none;}
   .crossing-head-actions{display:flex;align-items:center;gap:8px;}
   #crossingSummary{flex:1 1 auto;}
   #toggleCrossings{min-width:88px;}
   #finalLabel{display:none;}
-  .crossing-badge{margin-top:0;}
 
-
-  .status-inline{
-    display:inline-flex !important;
-    align-items:center !important;
-    justify-content:center !important;
-    gap:8px !important;
-    width:auto !important;
-    height:auto !important;
-    min-height:0 !important;
-    padding:0 !important;
-    margin:2px auto 0 !important;
-    border:0 !important;
-    border-radius:0 !important;
-    background:none !important;
-    box-shadow:none !important;
-    color:var(--muted) !important;
-    font-size:10.5px !important;
-    letter-spacing:.14em !important;
-    text-transform:uppercase !important;
-  }
-  .status-inline::before,.status-inline::after{display:none !important;content:none !important;}
-  #statusDot{
-    width:8px !important;
-    height:8px !important;
-    min-width:8px !important;
-    min-height:8px !important;
-    border-radius:50% !important;
-    display:inline-block !important;
-    flex:0 0 8px !important;
-    transform:none !important;
-    box-shadow:none !important;
-  }
-  #statusText{
-    display:inline !important;
-    font-size:10.5px !important;
-    line-height:1.1 !important;
-    letter-spacing:.14em !important;
-    text-transform:uppercase !important;
-  }
   .intermediate-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
   .intermediate-actions.hide{display:none;}
   .intermediate-actions .btn-ghost{min-height:42px;padding:0 14px;}
@@ -645,7 +588,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = '2026.07.07.16';
+const APP_VERSION = '2026.07.08.1';
 
 /* ---------------- Geo-Mathe ---------------- */
 const R = 6371000; // m
@@ -788,6 +731,8 @@ out geom tags;`;
       candidates.push({ lat, lon, type, barrierType, name, detour, score: detour + dLine * 0.8 + a * 0.05 + (accessMode === 'foot_only' ? 120 : 0), accessMode });
     };
 
+    const pendingBridges = [];
+
     for(const element of (data.elements || [])){
       const tags = element.tags || {};
 
@@ -803,11 +748,9 @@ out geom tags;`;
         if(tags.bridge === 'yes' || tags.man_made === 'bridge' || tags.tunnel === 'yes'){
           bridgeWays++;
           const mid = pts[Math.floor(pts.length / 2)];
-          let barrierType = 'water';
-          if(hitMotorway) barrierType = 'motorway';
-          else if(hitRail) barrierType = 'rail';
-          else if(hitWater) barrierType = 'water';
-          pushCandidate(mid.lat, mid.lon, tags.tunnel === 'yes' ? 'tunnel' : 'bridge', barrierType, tags.name || '', tags);
+          // barrierType wird erst NACH dem kompletten Scan zugewiesen —
+          // die hit*-Flags sind hier evtl. noch unvollständig (Overpass-Reihenfolge).
+          pendingBridges.push({ mid, type: tags.tunnel === 'yes' ? 'tunnel' : 'bridge', name: tags.name || '', tags });
         }
       }
 
@@ -825,6 +768,12 @@ out geom tags;`;
         levelCrossings++;
         pushCandidate(element.lat, element.lon, 'level_crossing', 'rail', tags.name || '', tags);
       }
+    }
+
+    // Jetzt sind alle hit*-Flags final — Brücken-/Tunnel-Kandidaten labeln und einreihen.
+    const bridgeBarrierType = hitMotorway ? 'motorway' : (hitRail ? 'rail' : 'water');
+    for(const b of pendingBridges){
+      pushCandidate(b.mid.lat, b.mid.lon, b.type, bridgeBarrierType, b.name, b.tags);
     }
 
     const unique = new Map();
@@ -862,6 +811,15 @@ function updateIntermediateActions(dist){
   const show = !!(state.intermediateDest && Number.isFinite(dist) && dist <= 50);
   box.classList.toggle('hide', !show);
 }
+/* Hinweistext mit optionaler Haltezeit — der Frame-Loop überschreibt
+   navHint sonst in jedem Frame und Meldungen wären nie sichtbar. */
+function setHint(text, holdMs = 0){
+  el('navHint').textContent = text;
+  state.hintHoldUntil = holdMs > 0 ? Date.now() + holdMs : 0;
+}
+function hintLocked(){
+  return Date.now() < state.hintHoldUntil;
+}
 function activateFinalDestination(message=''){
   if(!state.finalDest) return;
   state.intermediateDest = null;
@@ -871,7 +829,7 @@ function activateFinalDestination(message=''){
   state.dest = { ...state.finalDest };
   renderNavChrome();
   updateIntermediateActions(null);
-  if(message) el('navHint').textContent = message;
+  if(message) setHint(message, 4000);
 }
 
 function setRouteChip(){
@@ -912,14 +870,14 @@ function renderCrossingSuggestions(){
     const btn = document.createElement('button');
     btn.className = 'crossing-option' + (state.selectedCrossingKey === crossingKey(item) ? ' active' : '');
     const accessText = item.accessMode === 'foot_only' ? '<strong>nur schiebend / zu Fuß</strong>' : 'mit Rad befahrbar';
-    btn.innerHTML = `<span><div class="crossing-name">${item.name || crossingTypeLabel(item.type)}</div><div class="crossing-sub">${crossingTypeLabel(item.type)} · ${item.barrierType === 'rail' ? 'bei Bahnlinie' : (item.barrierType === 'motorway' ? 'bei Autobahn' : 'bei Gewässer')} · ${accessText}</div></span><span class="crossing-dist">+${formatMetersShort(item.detour)}</span>`;
+    btn.innerHTML = `<span><div class="crossing-name">${escHtml(item.name || crossingTypeLabel(item.type))}</div><div class="crossing-sub">${crossingTypeLabel(item.type)} · ${item.barrierType === 'rail' ? 'bei Bahnlinie' : (item.barrierType === 'motorway' ? 'bei Autobahn' : 'bei Gewässer')} · ${accessText}</div></span><span class="crossing-dist">+${formatMetersShort(item.detour)}</span>`;
     btn.addEventListener('click', () => {
       state.intermediateDest = { lat:item.lat, lon:item.lon, name:item.name || crossingTypeLabel(item.type) };
       state.selectedCrossingKey = crossingKey(item);
       state.dest = { ...state.intermediateDest };
       state.crossingLegendMode = item.accessMode || 'rideable';
       state.crossingExpanded = false;
-      el('navHint').textContent = '';
+      setHint('');
       setRouteChip();
       renderCrossingSuggestions();
       updateIntermediateActions(Number.POSITIVE_INFINITY);
@@ -947,7 +905,7 @@ function syncBarrierUI(){
   const hasInfo = !!(state.barrierSummary || state.barrierDebugText);
   if(btn){
     btn.classList.toggle('hide', !hasInfo);
-    btn.style.color = state.barrierIsError ? 'var(--warning)' : 'var(--accent)';
+    btn.style.color = state.barrierIsError ? 'var(--warn)' : 'var(--accent)';
   }
   if(btnText) btnText.textContent = state.barrierSummary || 'Barrieren-Check';
   if(summary) summary.textContent = state.barrierSummary || 'Noch keine Infos vorhanden.';
@@ -1036,6 +994,7 @@ const state = {
   barrierSummary: '',
   barrierDebugText: '',
   barrierIsError: false,
+  hintHoldUntil: 0,
 };
 
 const GPS_SWITCH_ON  = 1.2;
@@ -1235,29 +1194,8 @@ function startNav(dest){
   state.compassHeading = null;
   state.compassAccuracy = null;
   state.compassTs = 0;
-  state.smoothHeading = null;
-  state.displayAngle = 0;
-  state.gpsCourse = null;
-  state.gpsCourseSpeed = null;
-  state.gpsCourseDistance = 0;
-  state.gpsCourseTs = 0;
-  state.positionHistory = [];
-  state.compassHistory = [];
-  state.compassHeading = null;
-  state.compassAccuracy = null;
-  state.compassTs = 0;
-  state.smoothHeading = null;
-  state.displayAngle = 0;
-  state.gpsCourse = null;
-  state.gpsCourseSpeed = null;
-  state.gpsCourseDistance = 0;
-  state.gpsCourseTs = 0;
-  state.positionHistory = [];
-  state.compassHistory = [];
-  state.compassHeading = null;
-  state.compassAccuracy = null;
-  state.compassTs = 0;
   state.barrierSummary='';
+  state.hintHoldUntil = 0;
   updateIntermediateActions(null);
   hideBarrierError();
   setBarrierDebug('');
@@ -1632,6 +1570,9 @@ function frame(){
     updateIntermediateActions(state.intermediateDest ? dist : null);
     if(state.intermediateDest && dist <= 35){
       activateFinalDestination('Zwischenziel erreicht · weiter zum Endziel.');
+      // Nur diesen Frame überspringen (dist/brg beziehen sich noch aufs alte Ziel) —
+      // der Loop muss zwingend weiterlaufen.
+      requestAnimationFrame(frame);
       return;
     }
     if(!state.barrierChecked){
@@ -1707,19 +1648,9 @@ function frame(){
           el('finalMarkerHalo').setAttribute('cy', p2.y.toFixed(1));
           el('finalMarkerDot').setAttribute('cx', p2.x.toFixed(1));
           el('finalMarkerDot').setAttribute('cy', p2.y.toFixed(1));
-          const finalText = el('finalLabelText');
-          const finalRect = el('finalLabelRect');
-          finalText.textContent = formatMetersShort(finalDist);
-          const finalW = Math.max(34, Math.ceil(finalText.getComputedTextLength()) + 12);
-          const anchorLeft = p2.x > 132;
-          const lx = anchorLeft ? (p2.x - finalW - 8) : (p2.x + 8);
-          const ly = Math.max(4, p2.y - 9);
-          finalRect.setAttribute('x', lx.toFixed(1));
-          finalRect.setAttribute('y', ly.toFixed(1));
-          finalRect.setAttribute('width', finalW);
-          finalText.setAttribute('x', (lx + finalW/2).toFixed(1));
-          finalText.setAttribute('y', (ly + 9).toFixed(1));
-          el('finalLabel').setAttribute('transform', `rotate(${-state.displayAngle} ${(lx + finalW/2).toFixed(1)} ${(ly + 9).toFixed(1)})`);
+          // Das Distanz-Label des Endziels ist per CSS (#finalLabel) bewusst ausgeblendet.
+          // Die frühere Pro-Frame-Vermessung (getComputedTextLength auf verstecktem
+          // SVG-Text) entfällt daher — sie war unnötig und auf iOS unzuverlässig.
         }else{
           finalMarker.style.display = 'none';
         }
@@ -1730,22 +1661,28 @@ function frame(){
 
       if(pick.s==='gps'){
         setStatus('gps','GPS-Kurs');
-        el('navHint').textContent = pick.meta && pick.meta.detail === 'derived-course'
-          ? 'Richtung aus deiner Bewegung berechnet.'
-          : '';
+        if(!hintLocked()){
+          el('navHint').textContent = pick.meta && pick.meta.detail === 'derived-course'
+            ? 'Richtung aus deiner Bewegung berechnet.'
+            : '';
+        }
       }else{
         setStatus('compass','Kompass');
-        el('navHint').textContent = `Kompass-Fallback aktiv${pick.meta && Number.isFinite(pick.meta.accuracy) ? ` · ±${Math.round(pick.meta.accuracy)}°` : ''}.`;
+        if(!hintLocked()){
+          el('navHint').textContent = `Kompass-Fallback aktiv${pick.meta && Number.isFinite(pick.meta.accuracy) ? ` · ±${Math.round(pick.meta.accuracy)}°` : ''}.`;
+        }
       }
     }else{
       const finalMarker = el('finalMarker');
       if(finalMarker) finalMarker.style.display = 'none';
       setStatus('none','Richtung unklar');
       state.smoothHeading = null;
-      if(state.compassGranted){
-        el('navHint').textContent = 'Keine sichere Richtungsquelle. Kurz fahren oder iPhone/Kompass neu ausrichten.';
-      }else{
-        el('navHint').textContent = 'Keine sichere Richtungsquelle. Kurz fahren oder den iPhone-Kompass freigeben.';
+      if(!hintLocked()){
+        if(state.compassGranted){
+          el('navHint').textContent = 'Keine sichere Richtungsquelle. Kurz fahren oder iPhone/Kompass neu ausrichten.';
+        }else{
+          el('navHint').textContent = 'Keine sichere Richtungsquelle. Kurz fahren oder den iPhone-Kompass freigeben.';
+        }
       }
       if(window.DeviceOrientationEvent && typeof window.DeviceOrientationEvent.requestPermission==='function'
          && !state.compassGranted){
@@ -1754,7 +1691,7 @@ function frame(){
     }
   }else if(dest){
     setStatus('none','Suche Signal …');
-    el('navHint').textContent = 'Warte auf ersten Standortfix …';
+    if(!hintLocked()) el('navHint').textContent = 'Warte auf ersten Standortfix …';
   }
 
   requestAnimationFrame(frame);
