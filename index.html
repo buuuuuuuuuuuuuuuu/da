@@ -324,22 +324,18 @@
   .needle-wrap .radar-focus{transition:filter .3s ease;filter:drop-shadow(0 0 0 rgba(0,0,0,0));}
   .needle-wrap.aligned .radar-focus{filter:drop-shadow(0 0 10px var(--glow));}
 
-  /* Mittelnadel: eine Variante je Theme, alle exakt auf x=100 zentriert. */
-  .center-needle .nv{display:none;}
-  .center-needle .nv-neon{display:block;}
-  :root[data-theme="light"] .center-needle .nv-neon{display:none;}
-  :root[data-theme="light"] .center-needle .nv-grey{display:block;}
-  @media (prefers-color-scheme: light){
-    :root:not([data-theme]) .center-needle .nv-neon{display:none;}
-    :root:not([data-theme]) .center-needle .nv-grey{display:block;}
-  }
-  /* Sparmodus/Eco überschreibt jede Theme-Nadel. */
-  body.power-saver .center-needle .nv-grey,
-  body.power-saver .center-needle .nv-neon{display:none;}
-  body.power-saver .center-needle .nv-eco{display:block;}
-
   /* SVG-Label-Ecken folgen dem Theme-Radius. */
-  #blipLabelRect,#finalLabelRect{rx:var(--r-sm);}
+  .dist-context{font-size:11px;letter-spacing:.06em;color:var(--muted);margin-top:6px;min-height:14px;
+    max-width:min(80vw,360px);margin-left:auto;margin-right:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    font-family:ui-monospace,"SF Mono",Menlo,"Liberation Mono",monospace;text-transform:uppercase;}
+  .dist-context:empty{display:none;}
+  .mode-switch{display:inline-flex;margin:14px auto 2px;border:1px solid var(--hairline);border-radius:var(--r-pill);overflow:hidden;background:var(--surface);}
+  .mode-seg{font-family:ui-monospace,"SF Mono",Menlo,"Liberation Mono",monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;padding:8px 20px;color:var(--muted);background:transparent;transition:background .12s ease,color .12s ease;}
+  .mode-seg.on{background:var(--accent);color:var(--bg);font-weight:700;}
+  /* Pro-only Elemente in der einfachen Navi ausblenden */
+  body.simple-mode #barrierInfoBtn,
+  body.simple-mode #crossingPanel,
+  body.simple-mode #intermediateActions{display:none !important;}
 
   .readout{width:100%;text-align:center;}
   .distance{font-size:50px;font-weight:700;letter-spacing:-.01em;color:var(--accent);line-height:1;}
@@ -443,7 +439,6 @@
   .crossing-head-actions{display:flex;align-items:center;gap:8px;}
   #crossingSummary{flex:1 1 auto;}
   #toggleCrossings{min-width:88px;}
-  #finalLabel{display:none;}
 
   .intermediate-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
   .intermediate-actions.hide{display:none;}
@@ -558,55 +553,23 @@
         </div>
         <div id="needleWrap" class="needle-wrap">
           <svg viewBox="0 0 200 200" aria-hidden="true">
-            <!-- Radar-Fläche: Schweif + Blip — hier liegt der grafische Fokus -->
+            <!-- Richtungsstrahl (von Mitte zum Ziel) + Blip -->
             <g class="radar-focus">
-              <path d="M100 100 L77 9 L100 6 Z" fill="var(--accent)" opacity="0.16"/>
-              <circle cx="100" cy="6" r="11" fill="var(--accent)" opacity="0.28"/>
-              <circle cx="100" cy="6" r="4.5" fill="var(--accent)"/>
+              <path d="M100 100 L94 12 L106 12 Z" fill="var(--accent)" opacity="0.28"/>
+              <circle cx="100" cy="9" r="12" fill="var(--accent)" opacity="0.22"/>
+              <circle cx="100" cy="9" r="6" fill="var(--accent)"/>
             </g>
             <!-- Barrieren als rote Querstriche im Sweep (mehrere möglich) -->
             <g id="barrierMarks" style="display:none"></g>
             <!-- weitere Routen-Wegpunkte auf den äußeren Ringen -->
             <g id="routeMarkers"></g>
-            <!-- zentrale Nadel: Bounding-Box & Drehpunkt exakt auf (100,100) balanciert,
-                 damit sie mittig auf dem Radarzentrum sitzt (nicht darüber). Variante je Theme. -->
-            <g class="center-needle">
-              <!-- Light / Grau: klassische Kompassnadel -->
-              <g class="nv nv-grey">
-                <path d="M100 66 L90 100 L110 100 Z" fill="var(--accent)"/>
-                <path d="M100 134 L95 100 L105 100 Z" fill="var(--muted)"/>
-                <circle cx="100" cy="100" r="4" fill="var(--surface)" stroke="var(--accent)" stroke-width="1.4"/>
-              </g>
-              <!-- Dark / Neon: fetter Pfeil, mittig balanciert -->
-              <g class="nv nv-neon">
-                <path d="M100 64 L79 95 L121 95 Z" fill="var(--accent)"/>
-                <rect x="92.5" y="95" width="15" height="41" fill="var(--accent)"/>
-                <circle cx="100" cy="100" r="4.5" fill="var(--accent-2)"/>
-              </g>
-              <!-- Eco: Outline-Nadel -->
-              <g class="nv nv-eco">
-                <path d="M100 68 L90 100 L110 100 Z" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>
-                <line x1="100" y1="100" x2="100" y2="132" stroke="var(--accent)" stroke-width="2"/>
-                <circle cx="100" cy="100" r="3" fill="none" stroke="var(--accent)" stroke-width="1.5"/>
-              </g>
-            </g>
+            <!-- winziger Mittelpunkt = „du bist hier" (die Richtung zeigt der Sweep-Strahl) -->
+            <circle cx="100" cy="100" r="3.4" fill="var(--fg)" opacity="0.9"/>
             <!-- Distanz-Tag am Blip, bleibt per Gegenrotation aufrecht -->
-            <g id="blipLabel">
-              <rect id="blipLabelRect" x="106" y="-6" width="52" height="20" rx="5" fill="var(--surface)" stroke="var(--hairline)"/>
-              <text id="blipLabelText" x="132" y="4" text-anchor="middle" dominant-baseline="middle"
-                    font-size="11" font-weight="700" fill="var(--accent)"
-                    font-family="ui-monospace,'SF Mono',Menlo,'Liberation Mono',monospace">—</text>
-            </g>
             <!-- Endziel als leiser Sekundärmarker bei aktivem Zwischenziel -->
             <g id="finalMarker" opacity="0.92" style="display:none">
               <circle id="finalMarkerHalo" cx="100" cy="30" r="9" fill="#4DA3FF" opacity="0.18"/>
               <circle id="finalMarkerDot" cx="100" cy="30" r="4.2" fill="#4DA3FF"/>
-              <g id="finalLabel">
-                <rect id="finalLabelRect" x="108" y="20" width="44" height="18" rx="5" fill="var(--surface)" stroke="rgba(77,163,255,.34)"/>
-                <text id="finalLabelText" x="130" y="29" text-anchor="middle" dominant-baseline="middle"
-                      font-size="10" font-weight="700" fill="#4DA3FF"
-                      font-family="ui-monospace,'SF Mono',Menlo,'Liberation Mono',monospace">4 km</text>
-              </g>
             </g>
           </svg>
         </div>
@@ -615,10 +578,15 @@
 
     <div class="readout">
       <div class="distance"><span id="distVal">—</span><span id="distUnit" class="unit"></span></div>
+      <div id="distContext" class="dist-context"></div>
       <!-- kompakter Quellenstatus statt großer Kompass-Kachel -->
       <div class="status-inline" aria-live="polite">
         <span id="statusDot" class="dot none"></span>
         <span id="statusText">Suche Signal …</span>
+      </div>
+      <div id="modeSwitch" class="mode-switch">
+        <button id="modeSimple" class="mode-seg" type="button">Einfach</button>
+        <button id="modePro" class="mode-seg" type="button">Pro</button>
       </div>
       <button id="barrierInfoBtn" class="barrier-info-btn hide" type="button" aria-haspopup="dialog">
         <span class="dot"></span>
@@ -686,7 +654,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = '2026.07.08.5';
+const APP_VERSION = '2026.07.08.6';
 
 /* ---------------- Geo-Mathe ---------------- */
 const R = 6371000; // m
@@ -1227,6 +1195,8 @@ const state = {
   compassGranted: false,
   barrierChecked: false,
   lastBlip: null,
+  lastCtx: null,
+  proMode: false,
   finalDest: null,
   intermediateDest: null,
   crossingSuggestions: [],
@@ -1847,7 +1817,7 @@ function frame(){
       requestAnimationFrame(frame);
       return;
     }
-    if(!state.barrierChecked){
+    if(state.proMode && !state.barrierChecked){
       state.barrierChecked = true;
       // Nur bei realistischen Distanzen prüfen — riesige Bounding-Boxen
       // würden Overpass überfordern (Timeout/Datenmenge).
@@ -1857,14 +1827,16 @@ function frame(){
     const f = fmtDistance(dist);
     el('distVal').textContent = f.val;
     el('distUnit').textContent = f.unit;
-    const blipTxt = f.val + ' ' + f.unit;
-    if(state.lastBlip !== blipTxt){
-      state.lastBlip = blipTxt;
-      const t = el('blipLabelText');
-      t.textContent = blipTxt;
-      const w = Math.ceil(t.getComputedTextLength()) + 14;
-      el('blipLabelRect').setAttribute('width', w);
-      t.setAttribute('x', 106 + w/2);
+    // Kontext: zu welchem Punkt gehört die Distanz?
+    const dc = el('distContext');
+    if(dc){
+      let ctx = '';
+      if(state.intermediateDest && state.finalDest){
+        ctx = 'bis Zwischenziel · ' + state.intermediateDest.name;
+      }else if(state.finalDest){
+        ctx = 'bis Ziel · ' + state.finalDest.name;
+      }
+      if(state.lastCtx !== ctx){ state.lastCtx = ctx; dc.textContent = ctx; }
     }
 
     const pick = pickHeading();
@@ -1879,32 +1851,21 @@ function frame(){
       const step = reduceMotion ? 1 : 0.22;
       state.displayAngle = (state.displayAngle + angleDelta(state.displayAngle, rel)*step + 360) % 360;
 
-      const activeMarker = radarPointFromDistanceAndAngle(dist, 0, Math.max(dist, 1), state.intermediateDest ? { minR: 34, maxR: 60 } : { minR: 94, maxR: 94 });
+      const activeMarker = radarPointFromDistanceAndAngle(dist, 0, Math.max(dist, 1), state.intermediateDest ? { minR: 34, maxR: 60 } : { minR: 92, maxR: 92 });
       const focus = el('needleWrap').querySelector('.radar-focus');
       if(focus){
         const tipY = activeMarker.y.toFixed(1);
         const tipX = activeMarker.x.toFixed(1);
-        focus.querySelector('path').setAttribute('d', `M100 100 L77 ${tipY} L${tipX} ${tipY} Z`);
+        // schmaler, symmetrischer Strahl von der Mitte zum Blip
+        focus.querySelector('path').setAttribute('d', `M100 100 L${(activeMarker.x-6).toFixed(1)} ${tipY} L${(activeMarker.x+6).toFixed(1)} ${tipY} Z`);
         focus.querySelectorAll('circle')[0].setAttribute('cx', tipX);
         focus.querySelectorAll('circle')[0].setAttribute('cy', tipY);
         focus.querySelectorAll('circle')[1].setAttribute('cx', tipX);
         focus.querySelectorAll('circle')[1].setAttribute('cy', tipY);
       }
-      const blipRect = el('blipLabelRect');
-      const blipText = el('blipLabelText');
-      const blipW = Number(blipRect.getAttribute('width') || 52);
-      let blipX = activeMarker.x + 6;
-      if(activeMarker.x > 138) blipX = activeMarker.x - blipW - 6;
-      let blipY = activeMarker.y - 10;
-      if(blipY < -2) blipY = activeMarker.y + 6;
-      blipRect.setAttribute('x', blipX.toFixed(1));
-      blipRect.setAttribute('y', blipY.toFixed(1));
-      blipText.setAttribute('x', (blipX + blipW/2).toFixed(1));
-      blipText.setAttribute('y', (blipY + 10).toFixed(1));
 
       const wrap = el('needleWrap');
       wrap.style.transform = `rotate(${state.displayAngle}deg)`;
-      el('blipLabel').setAttribute('transform', `rotate(${-state.displayAngle} ${(blipX + blipW/2).toFixed(1)} ${(blipY + 10).toFixed(1)})`);
 
       positionSecondaryMarkers(pos, brg, dist);
 
@@ -2058,6 +2019,42 @@ if('serviceWorker' in navigator){
   try{ wakeWanted = wakeSupported && localStorage.getItem(WAKE_KEY) === '1'; }catch(_){}
   applySaver();
   setWakeChip();
+})();
+
+/* ---------------- Modus: Einfach / Pro ---------------- */
+(function(){
+  function applyMode(){
+    document.body.classList.toggle('pro-mode', state.proMode);
+    document.body.classList.toggle('simple-mode', !state.proMode);
+    const s = el('modeSimple'), p = el('modePro');
+    if(s) s.classList.toggle('on', !state.proMode);
+    if(p) p.classList.toggle('on', state.proMode);
+  }
+  window.__applyMode = applyMode;
+  function setMode(pro){
+    if(state.proMode === pro){ applyMode(); return; }
+    state.proMode = pro;
+    try{ localStorage.setItem('da.pro', pro ? '1' : '0'); }catch(_){}
+    if(!pro){
+      // Einfache Navi: Route/Barrieren verwerfen → direkt zum Ziel.
+      state.selectedCrossings = {}; state.route = []; state.barrierMarks = []; state.routeSig = '';
+      state.intermediateDest = null; state.selectedCrossingKey = null; state.crossingLegendMode = '';
+      state.crossingSuggestions = [];
+      if(state.finalDest) state.dest = { ...state.finalDest };
+      renderNavChrome(); renderBarrierMarks(); renderRouteMarkers();
+      updateIntermediateActions(null); hideSecondaryMarkers();
+      setHint('Einfache Navi · direkt zum Ziel.', 3000);
+    }else{
+      // Pro: Barrieren neu prüfen.
+      state.barrierChecked = false;
+      setHint('Pro-Navi · Barrieren-Check läuft …', 3000);
+    }
+    applyMode();
+  }
+  el('modeSimple').addEventListener('click', ()=>setMode(false));
+  el('modePro').addEventListener('click', ()=>setMode(true));
+  try{ state.proMode = localStorage.getItem('da.pro') === '1'; }catch(_){}
+  applyMode();
 })();
 
 /* ---------------- Theme Toggle ---------------- */
