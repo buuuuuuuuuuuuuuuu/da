@@ -687,7 +687,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = '2026.07.08.12';
+const APP_VERSION = '2026.07.08.14';
 
 /* ---------------- Geo-Mathe ---------------- */
 const R = 6371000; // m
@@ -1283,10 +1283,15 @@ function buildMiniMapPaths(){
   ).join('');
 }
 // Pro Frame: Ausschnitt auf aktuelle Position zentrieren + heading-oben drehen. Billig (nur transform).
+// Wichtig fürs Rad: die Karte HÄLT ihre letzte bekannte Ausrichtung, wenn die Richtung
+// kurz unklar wird — sie blendet nicht aus, sondern schwenkt weiter mit der Position mit.
 function updateMiniMap(pos, headingDeg){
-  const layer = el('mapLayer');
   const g = el('miniMap');
-  const show = isLightMapMode() && !!state.mapGeom && !!state.mapCenter && headingDeg != null;
+  if(headingDeg != null){
+    if(state.mapHeading == null) state.mapHeading = headingDeg;
+    else state.mapHeading = (state.mapHeading + angleDelta(state.mapHeading, headingDeg)*0.3 + 360) % 360;
+  }
+  const show = isLightMapMode() && !!state.mapGeom && !!state.mapCenter && state.mapHeading != null;
   document.body.classList.toggle('map-on', show);
   if(!show || !g) return;
   const { mx, my } = metersPerDeg(state.mapCenter.lat);
@@ -1295,11 +1300,11 @@ function updateMiniMap(pos, headingDeg){
   const northm = (pos.lat - state.mapCenter.lat) * my;
   const tx = -(east * s);
   const ty =  (northm * s);
-  // erst auf aktuelle Position schieben, dann um Heading drehen (Heading zeigt nach oben)
-  g.setAttribute('transform', `rotate(${(-headingDeg).toFixed(2)} 100 100) translate(${tx.toFixed(2)} ${ty.toFixed(2)})`);
+  // erst auf aktuelle Position schieben, dann um (gehaltenes) Heading drehen
+  g.setAttribute('transform', `rotate(${(-state.mapHeading).toFixed(2)} 100 100) translate(${tx.toFixed(2)} ${ty.toFixed(2)})`);
 }
 function resetMiniMap(){
-  state.mapGeom = null; state.mapCenter = null; state.mapFetchedAt = 0; state.mapFetching = false;
+  state.mapGeom = null; state.mapCenter = null; state.mapHeading = null; state.mapFetchedAt = 0; state.mapFetching = false;
   const g = el('miniMap'); if(g) g.innerHTML = '';
   document.body.classList.remove('map-on');
 }
@@ -1451,6 +1456,7 @@ const state = {
   hintHoldUntil: 0,
   mapGeom: null,
   mapCenter: null,
+  mapHeading: null,
   mapFetchedAt: 0,
   mapFetching: false,
 };
@@ -1487,6 +1493,11 @@ const COMPASS_MAX_AGE_MS = 2500;
 const COMPASS_MAX_ACCURACY = 20;
 const COMPASS_MAX_JITTER = 22;
 const COMPASS_MIN_SAMPLES = 3;
+// Gelockerte Gates im Stand/langsam: dort ist der Kompass die einzige Quelle,
+// und man wird nicht ins Fahren gelotst → lieber folgen als „Richtung unklar".
+const COMPASS_MAX_ACCURACY_SLOW = 40;
+const COMPASS_MAX_JITTER_SLOW = 90;
+const COMPASS_MIN_SAMPLES_SLOW = 2;
 
 /* Mini-Karte (nur Lightmode + Pro): lokaler, maßstäblicher Ausschnitt im Radar. */
 const MAP_RANGE_M = 450;          // Radius des sichtbaren Ausschnitts in Metern (= viewBox r 93)
@@ -1983,23 +1994,29 @@ function getTrustedGpsHeading(now = Date.now()){
   return null;
 }
 
-function getTrustedCompassHeading(now = Date.now()){
+function getTrustedCompassHeading(now = Date.now(), relaxed = false){
   if(state.compassHeading==null) return null;
   if((now - state.compassTs) > COMPASS_MAX_AGE_MS) return null;
   const history = state.compassHistory.filter(item => (now - item.ts) <= COMPASS_MAX_AGE_MS);
-  if(history.length < COMPASS_MIN_SAMPLES) return null;
+  const minSamples = relaxed ? COMPASS_MIN_SAMPLES_SLOW : COMPASS_MIN_SAMPLES;
+  if(history.length < minSamples) return null;
   const accuracyValues = history.map(item => item.accuracy).filter(v => v!=null && Number.isFinite(v));
   const accuracy = accuracyValues.length ? Math.max(...accuracyValues) : null;
-  if(accuracy==null || accuracy > COMPASS_MAX_ACCURACY) return null;
+  const maxAcc = relaxed ? COMPASS_MAX_ACCURACY_SLOW : COMPASS_MAX_ACCURACY;
+  if(accuracy==null || accuracy > maxAcc) return null;
   const jitter = compassJitter(history);
-  if(jitter > COMPASS_MAX_JITTER) return null;
-  return { v:state.compassHeading, accuracy, jitter };
+  const maxJit = relaxed ? COMPASS_MAX_JITTER_SLOW : COMPASS_MAX_JITTER;
+  if(jitter > maxJit) return null;
+  return { v:state.compassHeading, accuracy, jitter, relaxed };
 }
 
 function pickHeading(){
   const gps = getTrustedGpsHeading();
   if(gps) return {v:gps.v, s:'gps', meta:gps};
-  const compass = getTrustedCompassHeading();
+  // langsam/Stand: GPS-Kurs greift nicht → Kompass mit gelockerten Gates bevorzugen.
+  const spd = (state.gpsSpeed != null) ? state.gpsSpeed : state.gpsCourseSpeed;
+  const slow = (spd == null) || spd < GPS_SWITCH_ON;
+  const compass = getTrustedCompassHeading(Date.now(), slow);
   if(compass) return {v:compass.v, s:'compass', meta:compass};
   return {v:null, s:'none', meta:null};
 }
@@ -2076,7 +2093,7 @@ function frame(){
     state.source = pick.s;
 
     if(pick.v!=null){
-      const factor = pick.s==='compass' ? 0.12 : 0.3;
+      const factor = pick.s!=='compass' ? 0.3 : ((pick.meta && pick.meta.relaxed) ? 0.35 : 0.12);
       if(state.smoothHeading==null) state.smoothHeading = pick.v;
       state.smoothHeading = (state.smoothHeading + angleDelta(state.smoothHeading, pick.v)*factor + 360) % 360;
 
