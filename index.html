@@ -358,6 +358,26 @@
   .crossing-sub{font-size:11.5px;color:var(--muted);margin-top:3px;line-height:1.35;font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;}
   .crossing-dist{font-size:11px;color:var(--accent);letter-spacing:.06em;white-space:nowrap;padding-top:2px;}
   .crossing-sub strong{font-weight:700;color:var(--fg);font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;}
+  /* Barriere-Sektion: eine Gruppe je Barriere mit Einzelauswahl */
+  .barrier-sec{display:grid;gap:8px;padding:10px;border-radius:var(--r-sm);border:1px solid var(--hairline);background:color-mix(in srgb, var(--surface) 70%, transparent);}
+  .barrier-sec.focus{border-color:var(--accent);box-shadow:0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);}
+  .barrier-head{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .barrier-title{display:inline-flex;align-items:center;gap:8px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--fg);}
+  .barrier-idx{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;border-radius:var(--r-pill);background:var(--accent);color:var(--bg);font-weight:700;font-size:11px;padding:0 4px;}
+  .barrier-state{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);}
+  .barrier-state.ok{color:var(--accent);}
+  /* Zwischenziel-Pills oben (anklickbar → Barriere unten fokussieren) */
+  .wp-row{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;max-width:min(92vw,560px);}
+  .wp-pill{display:inline-flex;align-items:center;gap:7px;padding:5px 11px 5px 6px;border-radius:var(--r-pill);
+    border:1px solid var(--hairline);background:color-mix(in srgb, var(--surface) 92%, transparent);color:var(--muted);
+    font-size:11px;letter-spacing:.02em;max-width:min(60vw,240px);}
+  .wp-pill.active{border-color:var(--accent);color:var(--fg);}
+  .wp-pill:active{transform:scale(.97);}
+  .wp-idx{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;border-radius:var(--r-pill);
+    background:var(--muted-2);color:var(--fg);font-weight:700;font-size:10.5px;flex:0 0 auto;
+    font-family:ui-monospace,"SF Mono",Menlo,"Liberation Mono",monospace;}
+  .wp-pill.active .wp-idx{background:var(--accent);color:var(--bg);}
+  .wp-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;}
 
   .hint{color:var(--muted);font-size:12.5px;line-height:1.5;margin-top:14px;
     max-width:280px;margin-left:auto;margin-right:auto;min-height:18px;
@@ -655,7 +675,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = '2026.07.08.7';
+const APP_VERSION = '2026.07.08.8';
 
 /* ---------------- Geo-Mathe ---------------- */
 const R = 6371000; // m
@@ -869,7 +889,9 @@ out geom tags;`;
       const key = crossingKey(item);
       if(!unique.has(key) || item.score < unique.get(key).score) unique.set(key, item);
     }
-    state.crossingSuggestions = Array.from(unique.values()).sort((a,b)=>a.score-b.score).slice(0,5);
+    const suggestions = Array.from(unique.values()).sort((a,b)=>a.score-b.score);
+    state.crossingSuggestions = suggestions.slice(0, 8); // Fallback/Debug
+
     // Barriere-Marken (rote Querstriche) entlang der Luftlinie zum Ziel.
     const mSeen = new Map();
     for(const m of barrierMarks){
@@ -878,10 +900,18 @@ out geom tags;`;
       if(!mSeen.has(k)) mSeen.set(k, m);
     }
     state.barrierMarks = Array.from(mSeen.values()).sort((a,b)=>a.t-b.t).slice(0,6);
-    renderBarrierMarks();
-    renderCrossingSuggestions();
+
+    // Einzelne Barrieren clustern und jede Querung ihrer Barriere zuordnen.
+    state.barriers = buildBarriers(pos, dest, state.barrierMarks, suggestions);
+    // Auswahl bereinigen: nur Barrieren behalten, die es noch gibt.
+    const validIds = new Set(state.barriers.map(b => b.id));
+    for(const id of Object.keys(state.selectedCrossings)){
+      if(!validIds.has(id)) delete state.selectedCrossings[id];
+    }
+    rebuildRoute();
+
     showBarrierAlert(hitWater, hitRail, hitMotorway);
-    setBarrierDebug(`Barrieren-Check: ok · Elemente ${data.elements?.length || 0} · Wasser-Ways ${waterWays} · Wasser-Relationen ${waterRelations} · Bahn-Ways ${railWays} · Autobahn-Ways ${motorwayWays} · Querungen ${state.crossingSuggestions.length} · Treffer Wasser ${hitWater ? 'ja' : 'nein'} · Treffer Bahn ${hitRail ? 'ja' : 'nein'} · Treffer Autobahn ${hitMotorway ? 'ja' : 'nein'}`);
+    setBarrierDebug(`Barrieren-Check: ok · Elemente ${data.elements?.length || 0} · Wasser-Ways ${waterWays} · Wasser-Relationen ${waterRelations} · Bahn-Ways ${railWays} · Autobahn-Ways ${motorwayWays} · Barrieren ${state.barriers.length} · Querungen ${suggestions.length} · Treffer Wasser ${hitWater ? 'ja' : 'nein'} · Treffer Bahn ${hitRail ? 'ja' : 'nein'} · Treffer Autobahn ${hitMotorway ? 'ja' : 'nein'}`);
   }catch(err){
     setBarrierDebug(`Barrieren-Check: Fehler · ${err && err.message ? err.message : err}`);
     setBarrierError('Barrieren-Check fehlgeschlagen – Netzwerk/Overpass prüfen.');
@@ -896,6 +926,57 @@ function crossingTypeLabel(type){
   return 'Brücke';
 }
 function formatMetersShort(m){ return m < 1000 ? `${Math.round(m)} m` : `${(m/1000).toFixed(1)} km`; }
+function barrierTypeLabel(type){
+  return type === 'rail' ? 'Bahnlinie' : (type === 'motorway' ? 'Autobahn' : 'Gewässer');
+}
+// Bruchteil t∈[0,1], an dem Punkt p auf die Luftlinie pos→dest projiziert (metrisch).
+function projFractionM(pos, dest, p){
+  const latm = (pos.lat + dest.lat + p.lat) / 3;
+  const kx = Math.cos(latm * Math.PI/180) * 111320, ky = 110540;
+  const ax = pos.lon*kx, ay = pos.lat*ky, bx = dest.lon*kx, by = dest.lat*ky, px = p.lon*kx, py = p.lat*ky;
+  const abx = bx-ax, aby = by-ay, apx = px-ax, apy = py-ay;
+  const ab2 = abx*abx + aby*aby || 1;
+  return Math.max(0, Math.min(1, (apx*abx + apy*aby) / ab2));
+}
+// Aus Kreuzungsmarken + Querungsvorschlägen einzelne, geordnete Barrieren bauen.
+// Jede Barriere führt genau ihre eigenen Querungsoptionen (Einzelauswahl je Barriere).
+function buildBarriers(pos, dest, marks, suggestions){
+  const clusters = [];
+  for(const m of marks){
+    const c = clusters.find(c => c.type === m.type && Math.abs(c.t - m.t) < 0.08);
+    if(c){ c.t = (c.t*c.n + m.t)/(c.n+1); c.n++; }
+    else clusters.push({ type:m.type, t:m.t, n:1 });
+  }
+  const barriers = clusters.map(c => ({ type:c.type, t:c.t, options:[] }));
+  const findBarrier = (type, t) => {
+    let cand = barriers.filter(b => b.type === type);
+    if(!cand.length) cand = barriers;
+    let best = null, bd = Infinity;
+    for(const b of cand){ const d = Math.abs(b.t - t); if(d < bd){ bd = d; best = b; } }
+    return best;
+  };
+  for(const s of suggestions){
+    const t = projFractionM(pos, dest, s);
+    let b = findBarrier(s.barrierType, t);
+    // Keine passende Barriere gleichen Typs in der Nähe → eigene Barriere anlegen.
+    if(!b || (b.type !== s.barrierType && Math.abs(b.t - t) > 0.14)){
+      b = { type:s.barrierType, t, options:[] };
+      barriers.push(b);
+    }
+    b.options.push({ ...s, t });
+  }
+  const withOpts = barriers.filter(b => b.options.length);
+  withOpts.forEach(b => { b.t = b.options.reduce((s,o)=>s+o.t,0)/b.options.length; });
+  withOpts.sort((a,b) => a.t - b.t);
+  withOpts.forEach((b,i) => {
+    b.index = i + 1;
+    b.id = b.type + '@' + b.t.toFixed(2);
+    b.label = barrierTypeLabel(b.type);
+    b.options.sort((x,y) => x.score - y.score);
+    b.options = b.options.slice(0,4);
+  });
+  return withOpts;
+}
 function renderNavChrome(){
   setRouteChip();
   renderCrossingSuggestions();
@@ -924,16 +1005,19 @@ function hintLocked(){
 }
 function activateFinalDestination(message=''){ clearRoute(message); }
 
-/* ---- Route aus gewählten Querungen (mehrere Wegpunkte möglich) ---- */
+/* ---- Route aus gewählten Querungen (eine je Barriere, in Barriere-Reihenfolge) ---- */
+let focusTimer = null;
 function crossingToWaypoint(item){
   return { lat:item.lat, lon:item.lon, name:item.name || crossingTypeLabel(item.type),
-           type:item.type, barrierType:item.barrierType, accessMode:item.accessMode || 'rideable', key:crossingKey(item) };
+           type:item.type, barrierType:item.barrierType, accessMode:item.accessMode || 'rideable', key:crossingKey(item),
+           barrierId:item.barrierId, barrierLabel:item.barrierLabel, barrierIndex:item.barrierIndex };
 }
 function orderedSelectedCrossings(){
+  const tById = {};
+  for(const b of (state.barriers||[])) tById[b.id] = b.t;
   const arr = Object.values(state.selectedCrossings);
-  if(state.pos){
-    arr.sort((a,b)=> distance(state.pos.lat,state.pos.lon,a.lat,a.lon) - distance(state.pos.lat,state.pos.lon,b.lat,b.lon));
-  }
+  // Reihenfolge = Reihenfolge der Barrieren entlang der Route (t aufsteigend).
+  arr.sort((a,b)=> (tById[a.barrierId] ?? 1) - (tById[b.barrierId] ?? 1));
   return arr;
 }
 function rebuildRoute(){
@@ -951,29 +1035,48 @@ function rebuildRoute(){
     state.crossingLegendMode = '';
     if(state.finalDest) state.dest = { ...state.finalDest };
   }
-  state.crossingExpanded = false;
   renderNavChrome();
   renderBarrierMarks();
   renderRouteMarkers();
   updateIntermediateActions(state.intermediateDest ? Number.POSITIVE_INFINITY : null);
 }
-function toggleCrossing(item){
-  const k = crossingKey(item);
-  if(state.selectedCrossings[k]) delete state.selectedCrossings[k];
-  else state.selectedCrossings[k] = item;
+// Genau EINE Querung je Barriere. Erneutes Antippen derselben = abwählen.
+function selectCrossing(barrier, item){
+  const cur = state.selectedCrossings[barrier.id];
+  if(cur && cur.key === crossingKey(item)){
+    delete state.selectedCrossings[barrier.id];
+  }else{
+    state.selectedCrossings[barrier.id] = {
+      ...item, key:crossingKey(item),
+      barrierId:barrier.id, barrierLabel:barrier.label, barrierIndex:barrier.index
+    };
+  }
+  state.focusBarrierId = barrier.id;
   setHint('');
   rebuildRoute();
 }
+// Oben angetipptes Zwischenziel → passende Barriere unten aufklappen & hervorheben.
+function focusBarrier(id){
+  if(!id) return;
+  state.focusBarrierId = id;
+  state.crossingExpanded = true;
+  renderCrossingSuggestions();
+  const panel = el('crossingPanel');
+  if(panel && panel.scrollIntoView) panel.scrollIntoView({ behavior:'smooth', block:'nearest' });
+  clearTimeout(focusTimer);
+  focusTimer = setTimeout(()=>{ state.focusBarrierId = null; renderCrossingSuggestions(); }, 4000);
+}
 function advanceWaypoint(message=''){
-  // aktiven Wegpunkt (erreicht/übersprungen) entfernen → nächster oder Endziel
-  if(state.intermediateDest && state.intermediateDest.key){
-    delete state.selectedCrossings[state.intermediateDest.key];
+  // aktives Zwischenziel (erreicht/übersprungen) abwählen → nächstes oder Endziel
+  if(state.intermediateDest && state.intermediateDest.barrierId){
+    delete state.selectedCrossings[state.intermediateDest.barrierId];
   }
   rebuildRoute();
   if(message) setHint(message, 4000);
 }
 function clearRoute(message=''){
   state.selectedCrossings = {};
+  state.focusBarrierId = null;
   rebuildRoute();
   if(message) setHint(message, 4000);
 }
@@ -981,17 +1084,22 @@ function clearRoute(message=''){
 function setRouteChip(){
   const line = el('targetLine');
   if(!line) return;
-  if(state.intermediateDest && state.finalDest){
-    const more = state.route.length ? ` · +${state.route.length}` : '';
+  const chosen = orderedSelectedCrossings();
+  if(chosen.length && state.finalDest){
+    const pills = chosen.map((c,i)=>`
+      <button class="wp-pill${i===0 ? ' active' : ''}" type="button" data-bid="${escHtml(c.barrierId||'')}">
+        <span class="wp-idx">${c.barrierIndex || (i+1)}</span>
+        <span class="wp-name">${escHtml(c.name || crossingTypeLabel(c.type))}</span>
+      </button>`).join('');
     line.innerHTML = `
-      <div class="target-row">
-        <span class="target-pill target-pill-intermediate">Zwischenziel</span>
-        <span class="target-name">${escHtml(state.intermediateDest.name)}${escHtml(more)}</span>
-      </div>
+      <div class="wp-row" aria-label="Zwischenziele">${pills}</div>
       <div class="target-row">
         <span class="target-pill target-pill-final">Endziel</span>
         <span class="target-name">${escHtml(state.finalDest.name)}</span>
       </div>`;
+    line.querySelectorAll('.wp-pill').forEach(b=>{
+      b.addEventListener('click', ()=> focusBarrier(b.getAttribute('data-bid')));
+    });
   }else if(state.finalDest){
     line.innerHTML = `<div class="target-row"><span class="target-pill target-pill-final">Ziel</span><span class="target-name">${escHtml(state.finalDest.name)}</span></div>`;
   }else{
@@ -1074,34 +1182,41 @@ function renderCrossingSuggestions(){
   const summary = el('crossingSummary');
   const toggle = el('toggleCrossings');
   list.innerHTML = '';
-  if(!state.crossingSuggestions.length){
+  const barriers = state.barriers || [];
+  if(!barriers.length){
     panel.classList.remove('show');
     panel.classList.add('compact');
     if(summary) summary.textContent = state.barrierMarks.length
-      ? `${state.barrierMarks.length} Barriere${state.barrierMarks.length>1?'n':''} erkannt`
-      : 'Querungen als Zwischenziel';
+      ? `${state.barrierMarks.length} Barriere${state.barrierMarks.length>1?'n':''} · keine Querung gefunden`
+      : 'Keine Barrieren zwischen hier und Ziel';
     if(toggle) toggle.textContent = 'Anzeigen';
     return;
   }
-  let hasFootOnly = false, selCount = 0;
-  state.crossingSuggestions.forEach(item => {
-    const k = crossingKey(item);
-    const selected = !!state.selectedCrossings[k];
-    if(selected) selCount++;
-    if(item.accessMode === 'foot_only') hasFootOnly = true;
-    const btn = document.createElement('button');
-    btn.className = 'crossing-option' + (selected ? ' active' : '');
-    const accessText = item.accessMode === 'foot_only' ? '<strong>nur schiebend / zu Fuß</strong>' : 'mit Rad befahrbar';
-    const barrierTxt = item.barrierType === 'rail' ? 'bei Bahnlinie' : (item.barrierType === 'motorway' ? 'bei Autobahn' : 'bei Gewässer');
-    btn.innerHTML = `<span><div class="crossing-name">${escHtml(item.name || crossingTypeLabel(item.type))}</div><div class="crossing-sub">${crossingTypeLabel(item.type)} · ${barrierTxt} · ${accessText}</div></span><span class="crossing-dist">${selected ? '✓ ' : '+'}${formatMetersShort(item.detour)}</span>`;
-    btn.addEventListener('click', () => toggleCrossing(item));
-    list.appendChild(btn);
+  const solved = barriers.filter(b => state.selectedCrossings[b.id]).length;
+  barriers.forEach(b => {
+    const chosen = state.selectedCrossings[b.id];
+    const sec = document.createElement('div');
+    sec.className = 'barrier-sec' + (state.focusBarrierId === b.id ? ' focus' : '');
+    const head = document.createElement('div');
+    head.className = 'barrier-head';
+    head.innerHTML = `<span class="barrier-title"><span class="barrier-idx">${b.index}</span>${escHtml(b.label)}</span>`
+      + `<span class="barrier-state ${chosen ? 'ok' : ''}">${chosen ? '✓ gewählt' : 'offen'}</span>`;
+    sec.appendChild(head);
+    b.options.forEach(item => {
+      const isSel = chosen && chosen.key === crossingKey(item);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'crossing-option' + (isSel ? ' active' : '');
+      const accessText = item.accessMode === 'foot_only' ? '<strong>nur schiebend / zu Fuß</strong>' : 'mit Rad befahrbar';
+      btn.innerHTML = `<span><div class="crossing-name">${escHtml(item.name || crossingTypeLabel(item.type))}</div>`
+        + `<div class="crossing-sub">${crossingTypeLabel(item.type)} · ${accessText}</div></span>`
+        + `<span class="crossing-dist">${isSel ? '✓ ' : '+'}${formatMetersShort(item.detour)}</span>`;
+      btn.addEventListener('click', () => selectCrossing(b, item));
+      sec.appendChild(btn);
+    });
+    list.appendChild(sec);
   });
-  if(summary){
-    summary.textContent = selCount
-      ? `${state.crossingSuggestions.length} Querungen · ${selCount} gewählt`
-      : `${state.crossingSuggestions.length} Querungen wählbar${hasFootOnly ? ' · teils nur schiebend' : ''}`;
-  }
+  if(summary) summary.textContent = `${barriers.length} Barriere${barriers.length>1?'n':''} · ${solved} gelöst`;
   if(toggle) toggle.textContent = state.crossingExpanded ? 'Einklappen' : 'Anzeigen';
   panel.classList.add('show');
   panel.classList.toggle('compact', !state.crossingExpanded);
@@ -1201,6 +1316,8 @@ const state = {
   finalDest: null,
   intermediateDest: null,
   crossingSuggestions: [],
+  barriers: [],
+  focusBarrierId: null,
   selectedCrossingKey: null,
   crossingLegendMode: '',
   route: [],
@@ -1422,6 +1539,8 @@ function startNav(dest){
   state.selectedCrossingKey = null;
   state.crossingLegendMode = '';
   state.selectedCrossings = {};
+  state.barriers = [];
+  state.focusBarrierId = null;
   state.route = [];
   state.barrierMarks = [];
   state.routeSig = '';
@@ -1458,6 +1577,8 @@ function exitToSearch(){
   state.finalDest = null;
   state.intermediateDest = null;
   state.crossingSuggestions = [];
+  state.barriers = [];
+  state.focusBarrierId = null;
   state.selectedCrossingKey = null;
   state.crossingLegendMode = '';
   state.selectedCrossings = {};
@@ -2049,7 +2170,7 @@ if('serviceWorker' in navigator){
       // Einfache Navi: Route/Barrieren verwerfen → direkt zum Ziel.
       state.selectedCrossings = {}; state.route = []; state.barrierMarks = []; state.routeSig = '';
       state.intermediateDest = null; state.selectedCrossingKey = null; state.crossingLegendMode = '';
-      state.crossingSuggestions = [];
+      state.crossingSuggestions = []; state.barriers = []; state.focusBarrierId = null;
       if(state.finalDest) state.dest = { ...state.finalDest };
       renderNavChrome(); renderBarrierMarks(); renderRouteMarkers();
       updateIntermediateActions(null); hideSecondaryMarkers();
