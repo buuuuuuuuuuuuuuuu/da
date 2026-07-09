@@ -675,7 +675,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = '2026.07.08.10';
+const APP_VERSION = '2026.07.08.11';
 
 /* ---------------- Geo-Mathe ---------------- */
 const R = 6371000; // m
@@ -1780,7 +1780,7 @@ function startGeolocation(){
         el('navHint').textContent = 'Standort gerade nicht verfügbar — freien Himmel suchen.';
       }
     },
-    { enableHighAccuracy:true, maximumAge:1000, timeout:15000 }
+    { enableHighAccuracy:true, maximumAge:0, timeout:15000 }
   );
 }
 
@@ -1945,7 +1945,10 @@ function frame(){
       state.smoothHeading = (state.smoothHeading + angleDelta(state.smoothHeading, pick.v)*factor + 360) % 360;
 
       const rel = (brg - state.smoothHeading + 360) % 360;
-      const step = reduceMotion ? 1 : 0.22;
+      // Nur die Anzeige-Nachführung (displayAngle): kleine Änderungen ruhig halten,
+      // große Richtungswechsel schnell aufholen. Ändert NICHT die gewählte Richtung.
+      const relErr = Math.abs(angleDelta(state.displayAngle, rel));
+      const step = reduceMotion ? 1 : Math.min(0.55, 0.28 + (relErr / 180) * 0.7);
       state.displayAngle = (state.displayAngle + angleDelta(state.displayAngle, rel)*step + 360) % 360;
 
       const activeMarker = radarPointFromDistanceAndAngle(dist, 0, Math.max(dist, 1), state.intermediateDest ? { minR: 34, maxR: 60 } : { minR: 92, maxR: 92 });
