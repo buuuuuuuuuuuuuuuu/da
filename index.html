@@ -342,11 +342,11 @@
   .distance{font-size:50px;font-weight:700;letter-spacing:-.01em;color:var(--accent);line-height:1;}
   .distance .unit{font-size:20px;color:var(--muted);margin-left:6px;font-weight:700;}
   .status-inline{display:inline-flex;align-items:center;justify-content:center;gap:8px;margin:2px auto 0;color:var(--muted);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;}
-  .dot{width:6px;height:6px;border-radius:50%;background:var(--muted);flex:0 0 auto;}
+  .dot{width:6px;height:6px;min-height:6px;border-radius:50%;background:var(--muted);flex:0 0 auto;align-self:center;}
   .dot.gps{background:var(--gps);}
   .dot.compass{background:var(--accent);}
   .dot.none{background:var(--danger);}
-  #statusDot{width:8px;height:8px;flex:0 0 8px;}
+  #statusDot{width:8px;height:8px;min-height:8px;flex:0 0 8px;align-self:center;}
   .crossing-panel{display:none;width:100%;margin:12px auto 0;background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r-lg);padding:10px 10px 8px;}
   .crossing-panel.show{display:block;}
   .crossing-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;}
@@ -472,7 +472,7 @@
   .target-line:empty{display:none;}
   .target-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center;}
   .target-name{font-size:13.5px;line-height:1.3;color:var(--fg);opacity:.82;max-width:min(60vw,340px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .readout{display:grid;gap:10px;justify-items:center;}
+  .readout{display:grid;gap:10px;justify-items:center;align-items:start;align-content:start;}
   .distance{margin-top:2px;}
   #navHint:empty{display:none;}
   .crossing-head{align-items:center;}
@@ -675,7 +675,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = '2026.07.08.9';
+const APP_VERSION = '2026.07.08.10';
 
 /* ---------------- Geo-Mathe ---------------- */
 const R = 6371000; // m
