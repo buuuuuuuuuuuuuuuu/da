@@ -316,6 +316,10 @@
   .dial{position:relative;width:min(72vw,300px);aspect-ratio:1;}
   .ring{position:absolute;inset:0;}
   .ring svg{width:100%;height:100%;display:block;}
+  .map-layer{position:absolute;inset:0;display:none;}
+  .map-layer svg{width:100%;height:100%;display:block;overflow:hidden;}
+  body.map-on .map-layer{display:block;}
+  #miniMap path{fill:none;vector-effect:non-scaling-stroke;}
   .needle-wrap{
     position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
     overflow:hidden;                 /* alles bleibt in der Radar-Fläche — kein „Auslaufen" nach unten */
@@ -572,6 +576,14 @@
             <line x1="196" y1="100" x2="186" y2="100" stroke="var(--muted)" stroke-width="1.5"/>
           </svg>
         </div>
+        <div id="mapLayer" class="map-layer" aria-hidden="true">
+          <svg viewBox="0 0 200 200">
+            <defs><clipPath id="radarClip"><circle cx="100" cy="100" r="93"/></clipPath></defs>
+            <g clip-path="url(#radarClip)">
+              <g id="miniMap"></g>
+            </g>
+          </svg>
+        </div>
         <div id="needleWrap" class="needle-wrap">
           <svg viewBox="0 0 200 200" aria-hidden="true">
             <!-- Richtungsstrahl (von Mitte zum Ziel) + Blip -->
@@ -675,7 +687,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = '2026.07.08.11';
+const APP_VERSION = '2026.07.08.12';
 
 /* ---------------- Geo-Mathe ---------------- */
 const R = 6371000; // m
@@ -1181,6 +1193,117 @@ function positionSecondaryMarkers(pos, brg, dist){
   }
 }
 
+/* ================= Mini-Karte (Karten-Schatten im Radar) ================= */
+// Aktiv nur im Lightmode (kein Eco/Sparmodus) und in der Pro-Navigation.
+function isLightMapMode(){
+  if(document.body.classList.contains('power-saver')) return false;
+  if(!state.proMode) return false;
+  const t = document.documentElement.getAttribute('data-theme');
+  const light = t ? t === 'light' : window.matchMedia('(prefers-color-scheme: light)').matches;
+  return light;
+}
+function metersPerDeg(lat){
+  const latR = lat * Math.PI/180;
+  return { mx: 111320 * Math.cos(latR), my: 110540 };
+}
+// Overpass-Abruf für den lokalen Ausschnitt — bewusst klein & gedrosselt.
+async function maybeFetchMiniMap(pos){
+  if(!isLightMapMode() || state.mapFetching) return;
+  const now = Date.now();
+  if(state.mapCenter){
+    const moved = distance(pos.lat, pos.lon, state.mapCenter.lat, state.mapCenter.lon);
+    if(moved < MAP_REFETCH_MOVE_M && (now - state.mapFetchedAt) < MAP_REFETCH_MS) return;
+  }
+  state.mapFetching = true;
+  try{
+    const padLat = 0.0065;
+    const padLon = padLat / Math.max(0.35, Math.cos(pos.lat * Math.PI/180));
+    const south = pos.lat - padLat, north = pos.lat + padLat;
+    const west  = pos.lon - padLon, east = pos.lon + padLon;
+    const q = `[out:json][timeout:20][bbox:${south},${west},${north},${east}];
+(
+  way["highway"~"^(motorway|motorway_link|trunk|primary|secondary|tertiary|residential|unclassified|living_street|service|pedestrian|cycleway|footway|path|track)$"];
+  way["waterway"~"^(river|canal|stream|drain)$"];
+  way["natural"="water"];
+  way["railway"="rail"];
+);
+out geom 4000;`;
+    const res = await fetch('https://overpass-api.de/api/interpreter', { method:'POST', body:'data=' + encodeURIComponent(q) });
+    if(!res.ok){ state.mapFetching = false; return; }
+    const data = await res.json();
+    const geom = { roads:[], water:[], rail:[], motorway:[] };
+    for(const eln of (data.elements || [])){
+      if(eln.type !== 'way' || !eln.geometry || eln.geometry.length < 2) continue;
+      const tags = eln.tags || {};
+      const pts = eln.geometry.map(g => ({ lat:g.lat, lon:g.lon }));
+      const hw = tags.highway || '';
+      if(hw === 'motorway' || hw === 'motorway_link' || hw === 'trunk') geom.motorway.push(pts);
+      else if(tags.railway === 'rail') geom.rail.push(pts);
+      else if(tags.waterway || tags.natural === 'water') geom.water.push(pts);
+      else if(hw) geom.roads.push(pts);
+    }
+    state.mapGeom = geom;
+    state.mapCenter = { lat:pos.lat, lon:pos.lon };
+    state.mapFetchedAt = Date.now();
+    buildMiniMapPaths();
+  }catch(_){ /* offline/Overpass — Karte bleibt einfach leer */ }
+  state.mapFetching = false;
+}
+// Geometrie einmalig in ein nord-oben-Koordinatensystem (viewBox) um das Abruf-Zentrum bauen.
+function buildMiniMapPaths(){
+  const g = el('miniMap');
+  if(!g || !state.mapGeom || !state.mapCenter) return;
+  const { mx, my } = metersPerDeg(state.mapCenter.lat);
+  const s = MAP_SCALE;
+  const toPath = (lines) => {
+    let d = '';
+    for(const line of lines){
+      let seg = '';
+      for(let i=0;i<line.length;i++){
+        const east = (line[i].lon - state.mapCenter.lon) * mx;
+        const northm = (line[i].lat - state.mapCenter.lat) * my;
+        const x = 100 + east * s;
+        const y = 100 - northm * s;
+        // grobe Vorab-Beschneidung: weit außerhalb liegende Punkte überspringen
+        if(x < -120 || x > 320 || y < -120 || y > 320){ seg=''; continue; }
+        seg += (seg ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1) + ' ';
+      }
+      if(seg) d += seg;
+    }
+    return d;
+  };
+  const layers = [
+    { d: toPath(state.mapGeom.roads),    stroke:'rgba(25,26,29,.16)',  w:'1' },
+    { d: toPath(state.mapGeom.water),    stroke:'rgba(56,104,168,.55)', w:'1.6' },
+    { d: toPath(state.mapGeom.rail),     stroke:'rgba(120,60,60,.55)',  w:'1.4', dash:'4 3' },
+    { d: toPath(state.mapGeom.motorway), stroke:'rgba(180,92,40,.6)',   w:'1.8' },
+  ];
+  g.innerHTML = layers.filter(l => l.d).map(l =>
+    `<path d="${l.d}" stroke="${l.stroke}" stroke-width="${l.w}" stroke-linecap="round" stroke-linejoin="round"${l.dash ? ` stroke-dasharray="${l.dash}"` : ''}/>`
+  ).join('');
+}
+// Pro Frame: Ausschnitt auf aktuelle Position zentrieren + heading-oben drehen. Billig (nur transform).
+function updateMiniMap(pos, headingDeg){
+  const layer = el('mapLayer');
+  const g = el('miniMap');
+  const show = isLightMapMode() && !!state.mapGeom && !!state.mapCenter && headingDeg != null;
+  document.body.classList.toggle('map-on', show);
+  if(!show || !g) return;
+  const { mx, my } = metersPerDeg(state.mapCenter.lat);
+  const s = MAP_SCALE;
+  const east = (pos.lon - state.mapCenter.lon) * mx;
+  const northm = (pos.lat - state.mapCenter.lat) * my;
+  const tx = -(east * s);
+  const ty =  (northm * s);
+  // erst auf aktuelle Position schieben, dann um Heading drehen (Heading zeigt nach oben)
+  g.setAttribute('transform', `rotate(${(-headingDeg).toFixed(2)} 100 100) translate(${tx.toFixed(2)} ${ty.toFixed(2)})`);
+}
+function resetMiniMap(){
+  state.mapGeom = null; state.mapCenter = null; state.mapFetchedAt = 0; state.mapFetching = false;
+  const g = el('miniMap'); if(g) g.innerHTML = '';
+  document.body.classList.remove('map-on');
+}
+
 function renderCrossingSuggestions(){
   const panel = el('crossingPanel');
   const list = el('crossingList');
@@ -1326,6 +1449,10 @@ const state = {
   barrierDebugText: '',
   barrierIsError: false,
   hintHoldUntil: 0,
+  mapGeom: null,
+  mapCenter: null,
+  mapFetchedAt: 0,
+  mapFetching: false,
 };
 
 /* Laufzeitvariablen für „Display anlassen" / Sparmodus.
@@ -1360,6 +1487,12 @@ const COMPASS_MAX_AGE_MS = 2500;
 const COMPASS_MAX_ACCURACY = 20;
 const COMPASS_MAX_JITTER = 22;
 const COMPASS_MIN_SAMPLES = 3;
+
+/* Mini-Karte (nur Lightmode + Pro): lokaler, maßstäblicher Ausschnitt im Radar. */
+const MAP_RANGE_M = 450;          // Radius des sichtbaren Ausschnitts in Metern (= viewBox r 93)
+const MAP_SCALE = 93 / MAP_RANGE_M;
+const MAP_REFETCH_MOVE_M = 200;   // neu laden, wenn man sich so weit vom Zentrum entfernt hat
+const MAP_REFETCH_MS = 25000;
 
 /* ---------------- Elemente ---------------- */
 const el = id => document.getElementById(id);
@@ -1534,6 +1667,7 @@ function startNav(dest){
   state.dest = dest;
   state.finalDest = dest;
   resetRouteState();
+  resetMiniMap();
   state.barrierChecked = false;
   state.smoothHeading = null;
   state.displayAngle = 0;
@@ -1564,6 +1698,7 @@ function exitToSearch(){
   state.dest = null;
   state.finalDest = null;
   resetRouteState();
+  resetMiniMap();
   renderBarrierMarks();
   renderRouteMarkers();
   state.barrierChecked = false;
@@ -1770,6 +1905,7 @@ function startGeolocation(){
       state.gpsHeadingTs = state.gpsHeading==null ? 0 : ts;
       state.gpsSpeed = (p.coords.speed==null || isNaN(p.coords.speed)) ? null : p.coords.speed;
       updateDerivedGpsCourse(sample);
+      maybeFetchMiniMap(state.pos);
     },
     err=>{
       if(err.code === err.PERMISSION_DENIED){
@@ -2001,6 +2137,7 @@ function frame(){
         el('enableCompass').classList.remove('hide');
       }
     }
+    updateMiniMap(pos, state.smoothHeading);
   }else if(dest){
     setStatus('none','Suche Signal …');
     if(!hintLocked()) el('navHint').textContent = 'Warte auf ersten Standortfix …';
@@ -2150,10 +2287,12 @@ if('serviceWorker' in navigator){
       if(state.finalDest) state.dest = { ...state.finalDest };
       renderNavChrome(); renderBarrierMarks(); renderRouteMarkers();
       updateIntermediateActions(null); hideSecondaryMarkers();
+      document.body.classList.remove('map-on');
       setHint('Einfache Navi · direkt zum Ziel.', 3000);
     }else{
       // Pro: Barrieren neu prüfen.
       state.barrierChecked = false;
+      if(state.pos) maybeFetchMiniMap(state.pos);
       setHint('Pro-Navi · Barrieren-Check läuft …', 3000);
     }
     applyMode();
@@ -2182,6 +2321,7 @@ if('serviceWorker' in navigator){
     const isDark = theme === null ? systemDark.matches : theme === 'dark';
     toggleBtn.setAttribute('aria-label', isDark ? 'Zu Light Mode wechseln' : 'Zu Dark Mode wechseln');
     applyMetaThemeColor();
+    if(state.pos && state.dest) maybeFetchMiniMap(state.pos);
   }
 
   toggleBtn.addEventListener('click', ()=>{
