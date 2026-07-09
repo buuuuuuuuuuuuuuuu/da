@@ -675,7 +675,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = '2026.07.08.8';
+const APP_VERSION = '2026.07.08.9';
 
 /* ---------------- Geo-Mathe ---------------- */
 const R = 6371000; // m
@@ -890,7 +890,6 @@ out geom tags;`;
       if(!unique.has(key) || item.score < unique.get(key).score) unique.set(key, item);
     }
     const suggestions = Array.from(unique.values()).sort((a,b)=>a.score-b.score);
-    state.crossingSuggestions = suggestions.slice(0, 8); // Fallback/Debug
 
     // Barriere-Marken (rote Querstriche) entlang der Luftlinie zum Ziel.
     const mSeen = new Map();
@@ -1003,7 +1002,6 @@ function setHint(text, holdMs = 0){
 function hintLocked(){
   return Date.now() < state.hintHoldUntil;
 }
-function activateFinalDestination(message=''){ clearRoute(message); }
 
 /* ---- Route aus gewählten Querungen (eine je Barriere, in Barriere-Reihenfolge) ---- */
 let focusTimer = null;
@@ -1025,14 +1023,10 @@ function rebuildRoute(){
   if(ordered.length){
     state.intermediateDest = ordered[0];
     state.route = ordered.slice(1);
-    state.selectedCrossingKey = ordered[0].key;
-    state.crossingLegendMode = ordered[0].accessMode;
     state.dest = { lat:ordered[0].lat, lon:ordered[0].lon, name:ordered[0].name };
   }else{
     state.intermediateDest = null;
     state.route = [];
-    state.selectedCrossingKey = null;
-    state.crossingLegendMode = '';
     if(state.finalDest) state.dest = { ...state.finalDest };
   }
   renderNavChrome();
@@ -1079,6 +1073,17 @@ function clearRoute(message=''){
   state.focusBarrierId = null;
   rebuildRoute();
   if(message) setHint(message, 4000);
+}
+// Vollständiges Zurücksetzen des Routen-/Barrieren-Zustands (Start, Beenden, Moduswechsel).
+// clearRoute() ist bewusst separat: es behält die erkannten Barrieren zum Neu-Wählen.
+function resetRouteState(){
+  state.selectedCrossings = {};
+  state.barriers = [];
+  state.focusBarrierId = null;
+  state.intermediateDest = null;
+  state.route = [];
+  state.barrierMarks = [];
+  state.routeSig = '';
 }
 
 function setRouteChip(){
@@ -1294,14 +1299,11 @@ const state = {
   gpsHeading: null,
   gpsHeadingTs: 0,
   gpsSpeed: null,
-  gpsAccuracy: null,
   gpsCourse: null,
   gpsCourseSpeed: null,
-  gpsCourseDistance: 0,
   gpsCourseTs: 0,
   positionHistory: [],
   compassHeading: null,
-  compassAccuracy: null,
   compassTs: 0,
   compassHistory: [],
   source: 'none',
@@ -1310,16 +1312,12 @@ const state = {
   watchId: null,
   compassGranted: false,
   barrierChecked: false,
-  lastBlip: null,
   lastCtx: null,
   proMode: false,
   finalDest: null,
   intermediateDest: null,
-  crossingSuggestions: [],
   barriers: [],
   focusBarrierId: null,
-  selectedCrossingKey: null,
-  crossingLegendMode: '',
   route: [],
   selectedCrossings: {},
   barrierMarks: [],
@@ -1535,26 +1533,16 @@ qInput.addEventListener('keydown', e=>{ if(e.key==='Enter') runSearch(); });
 function startNav(dest){
   state.dest = dest;
   state.finalDest = dest;
-  state.intermediateDest = null;
-  state.selectedCrossingKey = null;
-  state.crossingLegendMode = '';
-  state.selectedCrossings = {};
-  state.barriers = [];
-  state.focusBarrierId = null;
-  state.route = [];
-  state.barrierMarks = [];
-  state.routeSig = '';
+  resetRouteState();
   state.barrierChecked = false;
   state.smoothHeading = null;
   state.displayAngle = 0;
   state.gpsCourse = null;
   state.gpsCourseSpeed = null;
-  state.gpsCourseDistance = 0;
   state.gpsCourseTs = 0;
   state.positionHistory = [];
   state.compassHistory = [];
   state.compassHeading = null;
-  state.compassAccuracy = null;
   state.compassTs = 0;
   state.barrierSummary='';
   state.hintHoldUntil = 0;
@@ -1575,16 +1563,7 @@ function exitToSearch(){
   releaseWakeLock();
   state.dest = null;
   state.finalDest = null;
-  state.intermediateDest = null;
-  state.crossingSuggestions = [];
-  state.barriers = [];
-  state.focusBarrierId = null;
-  state.selectedCrossingKey = null;
-  state.crossingLegendMode = '';
-  state.selectedCrossings = {};
-  state.route = [];
-  state.barrierMarks = [];
-  state.routeSig = '';
+  resetRouteState();
   renderBarrierMarks();
   renderRouteMarkers();
   state.barrierChecked = false;
@@ -1602,7 +1581,7 @@ function exitToSearch(){
 el('changeDest').addEventListener('click', exitToSearch);
 
 el('toggleCrossings').addEventListener('click', ()=>{
-  if(!state.crossingSuggestions.length) return;
+  if(!state.barriers.length) return;
   state.crossingExpanded = !state.crossingExpanded;
   renderCrossingSuggestions();
 });
@@ -1767,13 +1746,11 @@ function updateDerivedGpsCourse(sample){
   if(!anchor){
     state.gpsCourse = null;
     state.gpsCourseSpeed = null;
-    state.gpsCourseDistance = 0;
     state.gpsCourseTs = 0;
     return;
   }
   state.gpsCourse = bearing(anchor.candidate.lat, anchor.candidate.lon, sample.lat, sample.lon);
   state.gpsCourseSpeed = anchor.legDistance / Math.max(anchor.spanMs / 1000, 0.001);
-  state.gpsCourseDistance = anchor.legDistance;
   state.gpsCourseTs = sample.ts;
 }
 
@@ -1792,7 +1769,6 @@ function startGeolocation(){
       state.gpsHeading = (p.coords.heading==null || isNaN(p.coords.heading)) ? null : p.coords.heading;
       state.gpsHeadingTs = state.gpsHeading==null ? 0 : ts;
       state.gpsSpeed = (p.coords.speed==null || isNaN(p.coords.speed)) ? null : p.coords.speed;
-      state.gpsAccuracy = (p.coords.accuracy==null || isNaN(p.coords.accuracy)) ? null : p.coords.accuracy;
       updateDerivedGpsCourse(sample);
     },
     err=>{
@@ -1829,7 +1805,6 @@ function onOrientation(e){
     : null;
   const ts = Date.now();
   state.compassHeading = heading;
-  state.compassAccuracy = accuracy;
   state.compassTs = ts;
   state.compassHistory.push({ heading, accuracy, ts });
   state.compassHistory = state.compassHistory.filter(item => ts - item.ts <= COMPASS_MAX_AGE_MS);
@@ -2168,9 +2143,7 @@ if('serviceWorker' in navigator){
     try{ localStorage.setItem('da.pro', pro ? '1' : '0'); }catch(_){}
     if(!pro){
       // Einfache Navi: Route/Barrieren verwerfen → direkt zum Ziel.
-      state.selectedCrossings = {}; state.route = []; state.barrierMarks = []; state.routeSig = '';
-      state.intermediateDest = null; state.selectedCrossingKey = null; state.crossingLegendMode = '';
-      state.crossingSuggestions = []; state.barriers = []; state.focusBarrierId = null;
+      resetRouteState();
       if(state.finalDest) state.dest = { ...state.finalDest };
       renderNavChrome(); renderBarrierMarks(); renderRouteMarkers();
       updateIntermediateActions(null); hideSecondaryMarkers();
