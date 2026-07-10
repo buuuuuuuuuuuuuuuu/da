@@ -687,7 +687,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = '2026.07.08.14';
+const APP_VERSION = '2026.07.08.15';
 
 /* ---------------- Geo-Mathe ---------------- */
 const R = 6371000; // m
@@ -1124,18 +1124,33 @@ function setRouteChip(){
   }
 }
 
-/* Rote Querstriche der Barrieren im Sweep — sichtbar solange kein Zwischenziel aktiv ist. */
+/* Barriere-Marks im Strahl: Position linear nach Distanz (t = Distanz/Zieldistanz).
+   Rot = offen (dezent), Grün = gelöst (Querung gewählt). Auch bei aktiver Route sichtbar. */
 function renderBarrierMarks(){
   const g = el('barrierMarks');
   if(!g) return;
-  const show = state.barrierMarks.length && !state.intermediateDest;
-  if(!show){ g.style.display = 'none'; g.innerHTML = ''; return; }
-  const R = 94, r0 = 16, half = 8.5;
+  const BEAM_R = 92;   // Radius, der der vollen Zieldistanz entspricht (Blip am Rand)
+  const MIN_R = 6;     // nicht direkt im Mittelpunkt
+  const half = 7;
+  // Marks sammeln: erkannte Barrieren (mit Lösungsstatus) + reine Luftlinien-Treffer ohne Querung.
+  const items = [];
+  for(const b of (state.barriers || [])){
+    items.push({ t: b.t, type: b.type, solved: !!state.selectedCrossings[b.id] });
+  }
+  for(const m of (state.barrierMarks || [])){
+    const covered = (state.barriers || []).some(b => b.type === m.type && Math.abs(b.t - m.t) < 0.12);
+    if(!covered) items.push({ t: m.t, type: m.type, solved: false });
+  }
+  if(!items.length){ g.style.display = 'none'; g.innerHTML = ''; return; }
   let html = '';
-  for(const m of state.barrierMarks){
-    const r = r0 + m.t * (R - r0);
+  for(const it of items){
+    const t = Math.max(0, Math.min(1, it.t));
+    const r = Math.max(MIN_R, t * BEAM_R);
     const y = (100 - r).toFixed(1);
-    html += `<line x1="${(100-half).toFixed(1)}" y1="${y}" x2="${(100+half).toFixed(1)}" y2="${y}" stroke="#FF3B30" stroke-width="3.4" stroke-linecap="round" opacity="0.92"/>`;
+    const stroke = it.solved ? '#37B24D' : '#FF3B30';
+    const opacity = it.solved ? '0.85' : '0.42';        // Rot bewusst unauffällig
+    const w = it.solved ? '2.6' : '2.2';
+    html += `<line x1="${(100-half).toFixed(1)}" y1="${y}" x2="${(100+half).toFixed(1)}" y2="${y}" stroke="${stroke}" stroke-width="${w}" stroke-linecap="round" opacity="${opacity}"/>`;
   }
   g.innerHTML = html;
   g.style.display = '';
