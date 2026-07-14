@@ -576,9 +576,9 @@
           <svg viewBox="0 0 200 200" aria-hidden="true">
             <!-- Richtungsstrahl (von Mitte zum Ziel) + Blip -->
             <g class="radar-focus">
-              <path d="M100 100 L94 12 L106 12 Z" fill="var(--accent)" opacity="0.28"/>
-              <circle cx="100" cy="9" r="12" fill="var(--accent)" opacity="0.22"/>
-              <circle cx="100" cy="9" r="6" fill="var(--accent)"/>
+              <path d="M100 100 L94 20 L106 20 Z" fill="var(--accent)" opacity="0.28"/>
+              <circle cx="100" cy="20" r="12" fill="var(--accent)" opacity="0.22"/>
+              <circle cx="100" cy="20" r="6" fill="var(--accent)"/>
             </g>
             <!-- Barrieren als rote Querstriche im Sweep (mehrere möglich) -->
             <g id="barrierMarks" style="display:none"></g>
@@ -674,7 +674,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = '2026.07.08.16';
+const APP_VERSION = '2026.07.08.17';
 
 /* ---------------- Geo-Mathe ---------------- */
 const R = 6371000; // m
@@ -1117,7 +1117,7 @@ function setRouteChip(){
 function renderBarrierMarks(){
   const g = el('barrierMarks');
   if(!g) return;
-  const BEAM_R = 92;   // Radius, der der vollen Zieldistanz entspricht (Blip am Rand)
+  const BEAM_R = RADAR_BLIP_R;   // t=1 (am Ziel) = genau die Blip-Position
   const MIN_R = 6;     // nicht direkt im Mittelpunkt
   const half = 7;
   // Marks sammeln: erkannte Barrieren (mit Lösungsstatus) + reine Luftlinien-Treffer ohne Querung.
@@ -1187,7 +1187,7 @@ function positionSecondaryMarkers(pos, brg, dist){
   if(finalMarker){
     const finalBearing = bearing(pos.lat,pos.lon,state.finalDest.lat,state.finalDest.lon);
     const deltaFromActive = angleDelta(brg, finalBearing);
-    const p2 = radarPointFromDistanceAndAngle(finalRel, deltaFromActive, scale, { minR:58, maxR:88 });
+    const p2 = radarPointFromDistanceAndAngle(finalRel, deltaFromActive, scale, { minR:58, maxR:84 });
     finalMarker.style.display = '';
     el('finalMarkerHalo').setAttribute('cx', p2.x.toFixed(1));
     el('finalMarkerHalo').setAttribute('cy', p2.y.toFixed(1));
@@ -1502,6 +1502,11 @@ const COMPASS_MIN_SAMPLES = 3;
 const COMPASS_MAX_ACCURACY_SLOW = 40;
 const COMPASS_MAX_JITTER_SLOW = 90;
 const COMPASS_MIN_SAMPLES_SLOW = 2;
+
+/* Radar-Geometrie: Blip-Radius bei voller Zieldistanz.
+   Clip-Grenze liegt bei 100; Blip-Halo ist 12 groß → 80 + 12 = 92 bleibt sauber
+   innerhalb des äußeren Rings (94) und wird nirgends angeschnitten. */
+const RADAR_BLIP_R = 80;
 
 /* Mini-Karte (nur Lightmode + Pro): lokaler, maßstäblicher Ausschnitt im Radar. */
 const MAP_RANGE_M = 450;          // Radius des sichtbaren Ausschnitts in Metern (= viewBox r 93)
@@ -2108,7 +2113,7 @@ function frame(){
       const step = reduceMotion ? 1 : Math.min(0.55, 0.28 + (relErr / 180) * 0.7);
       state.displayAngle = (state.displayAngle + angleDelta(state.displayAngle, rel)*step + 360) % 360;
 
-      const activeMarker = radarPointFromDistanceAndAngle(dist, 0, Math.max(dist, 1), state.intermediateDest ? { minR: 34, maxR: 60 } : { minR: 92, maxR: 92 });
+      const activeMarker = radarPointFromDistanceAndAngle(dist, 0, Math.max(dist, 1), state.intermediateDest ? { minR: 34, maxR: 60 } : { minR: RADAR_BLIP_R, maxR: RADAR_BLIP_R });
       const focus = el('needleWrap').querySelector('.radar-focus');
       if(focus){
         const tipY = activeMarker.y.toFixed(1);
