@@ -158,7 +158,6 @@
   #reloadTopBtn:active{transform:scale(.94) rotate(-25deg);}
   #reloadTopBtn svg{width:17px;height:17px;stroke:var(--fg);fill:none;stroke-width:1.8;}
 
-  .nav-top{position:relative;}
   #closeNavBtn{
     position:fixed;top:calc(var(--safe-t) + 10px);right:14px;
     z-index:20;width:36px;height:36px;border-radius:50%;
@@ -174,7 +173,7 @@
   #versionTag{
     position:fixed;left:0;right:0;bottom:calc(var(--safe-b) + 10px);
     text-align:center;font-size:9.5px;letter-spacing:.08em;
-    color:var(--muted);opacity:.55;pointer-events:none;z-index:5;
+    color:var(--muted);opacity:.4;pointer-events:none;z-index:5;
     padding-top:10px;
   }
 
@@ -306,7 +305,7 @@
 
   /* ---------- Nav ---------- */
   #nav{align-items:center;justify-content:flex-start;padding:calc(var(--safe-t) + 22px) 22px 0;overflow-y:auto;-webkit-overflow-scrolling:touch;}
-  .nav-top{width:100%;text-align:center;padding-top:8px;}
+  .nav-top{position:relative;width:100%;text-align:center;padding-top:8px;display:grid;gap:10px;justify-items:center;}
 
   .compass{
     position:relative;flex:0 0 auto;width:100%;min-height:min(66vw,300px);
@@ -342,8 +341,8 @@
   body.simple-mode #crossingPanel,
   body.simple-mode #intermediateActions{display:none !important;}
 
-  .readout{width:100%;text-align:center;}
-  .distance{font-size:50px;font-weight:700;letter-spacing:-.01em;color:var(--accent);line-height:1;}
+  .readout{width:100%;text-align:center;display:grid;gap:10px;justify-items:center;align-items:start;align-content:start;}
+  .distance{font-size:50px;font-weight:700;letter-spacing:-.01em;color:var(--accent);line-height:1;margin-top:2px;}
   .distance .unit{font-size:20px;color:var(--muted);margin-left:6px;font-weight:700;}
   .status-inline{display:inline-flex;align-items:center;justify-content:center;gap:8px;margin:2px auto 0;color:var(--muted);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;}
   .dot{width:6px;height:6px;min-height:6px;border-radius:50%;background:var(--muted);flex:0 0 auto;align-self:center;}
@@ -351,11 +350,11 @@
   .dot.compass{background:var(--accent);}
   .dot.none{background:var(--danger);}
   #statusDot{width:8px;height:8px;min-height:8px;flex:0 0 8px;align-self:center;}
-  .crossing-panel{display:none;width:100%;margin:12px auto 0;background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r-lg);padding:10px 10px 8px;}
+  .crossing-panel{display:none;width:100%;margin:12px auto 0;background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r-lg);padding:12px 14px;}
   .crossing-panel.show{display:block;}
   .crossing-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;}
-  .crossing-title{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
-  .crossing-list{display:grid;gap:8px;}
+  .crossing-title{font-size:11px;line-height:1.35;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
+  .crossing-list{display:grid;gap:8px;margin-top:10px;}
   .crossing-option{width:100%;display:flex;justify-content:space-between;gap:10px;align-items:flex-start;padding:10px;border-radius:var(--r-sm);border:1px solid var(--hairline);background:var(--bg);text-align:left;}
   .crossing-option.active{border-color:var(--accent);}
   .crossing-name{font-size:13px;font-weight:700;line-height:1.35;}
@@ -387,7 +386,7 @@
     max-width:280px;margin-left:auto;margin-right:auto;min-height:18px;
     font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;}
 
-  .nav-actions{width:100%;display:flex;gap:10px;justify-content:center;
+  .nav-actions{width:100%;display:flex;gap:10px;justify-content:center;margin-top:20px;
     padding:14px 0 calc(30px + var(--safe-b));}
   .power-row{width:100%;display:flex;gap:8px;justify-content:center;margin-top:auto;padding:6px 0 0;}
   .power-chip{display:inline-flex;align-items:center;gap:7px;
@@ -454,12 +453,12 @@
     .spinner{animation:none;}
   }
 
-  .target-line{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:8px;min-height:18px;}
+  .target-line{margin-top:8px;min-height:18px;max-width:min(92vw,560px);display:grid;gap:8px;justify-items:start;align-items:start;justify-content:center;}
   .target-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:var(--r-pill);border:1px solid var(--hairline);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;background:color-mix(in srgb, var(--surface) 92%, transparent);}
   .target-pill::before{content:'';width:8px;height:8px;border-radius:50%;display:inline-block;background:currentColor;}
   .target-pill-final{color:#4DA3FF;border-color:rgba(77,163,255,.26);}
   .target-pill-intermediate{color:var(--accent);border-color:color-mix(in srgb, var(--accent) 35%, var(--hairline));}
-  .target-name{font-size:11px;letter-spacing:.04em;color:var(--muted);}
+  .target-name{font-size:13.5px;letter-spacing:.04em;line-height:1.3;color:var(--fg);opacity:.82;max-width:min(60vw,340px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .crossing-panel.compact #crossingList{display:none;}
   .crossing-head-actions{display:flex;align-items:center;gap:8px;}
   #crossingSummary{flex:1 1 auto;}
@@ -470,21 +469,10 @@
   .intermediate-actions .btn-ghost{min-height:42px;padding:0 14px;}
 
 
-  .nav-top{display:grid;gap:10px;justify-items:center;}
   .eyebrow + .target-line{margin-top:2px;}
-  .target-line{max-width:min(92vw,560px);display:grid;gap:8px;justify-items:start;align-items:start;justify-content:center;}
   .target-line:empty{display:none;}
   .target-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center;}
-  .target-name{font-size:13.5px;line-height:1.3;color:var(--fg);opacity:.82;max-width:min(60vw,340px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .readout{display:grid;gap:10px;justify-items:center;align-items:start;align-content:start;}
-  .distance{margin-top:2px;}
   #navHint:empty{display:none;}
-  .crossing-head{align-items:center;}
-  .crossing-title{font-size:11px;line-height:1.35;}
-  .crossing-panel{padding:12px 14px;}
-  .crossing-list{margin-top:10px;}
-  .nav-actions{margin-top:20px;}
-  #versionTag{opacity:.4;}
 
 </style>
 </head>
@@ -598,7 +586,6 @@
             <g id="routeMarkers"></g>
             <!-- winziger Mittelpunkt = „du bist hier" (die Richtung zeigt der Sweep-Strahl) -->
             <circle cx="100" cy="100" r="3.4" fill="var(--fg)" opacity="0.9"/>
-            <!-- Distanz-Tag am Blip, bleibt per Gegenrotation aufrecht -->
             <!-- Endziel als leiser Sekundärmarker bei aktivem Zwischenziel -->
             <g id="finalMarker" opacity="0.92" style="display:none">
               <circle id="finalMarkerHalo" cx="100" cy="30" r="9" fill="#4DA3FF" opacity="0.18"/>
@@ -687,7 +674,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = '2026.07.08.15';
+const APP_VERSION = '2026.07.08.16';
 
 /* ---------------- Geo-Mathe ---------------- */
 const R = 6371000; // m
@@ -1096,6 +1083,7 @@ function resetRouteState(){
   state.route = [];
   state.barrierMarks = [];
   state.routeSig = '';
+  state.crossingExpanded = false;
 }
 
 function setRouteChip(){
@@ -1465,6 +1453,7 @@ const state = {
   selectedCrossings: {},
   barrierMarks: [],
   routeSig: '',
+  crossingExpanded: false,
   barrierSummary: '',
   barrierDebugText: '',
   barrierIsError: false,
