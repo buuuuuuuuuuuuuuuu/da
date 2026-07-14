@@ -320,9 +320,10 @@
   body.map-on .map-layer{display:block;}
   #miniMap path{fill:none;vector-effect:non-scaling-stroke;}
   .needle-wrap{
-    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-    overflow:hidden;                 /* alles bleibt in der Radar-Fläche — kein „Auslaufen" nach unten */
-    border-radius:50%;               /* Clip als Kreis = Dial-Form */
+    position:absolute;inset:-10%;         /* Zeichenfläche größer als der Radarkreis → Halo darf außen überstehen */
+    display:flex;align-items:center;justify-content:center;
+    overflow:hidden;
+    border-radius:50%;                    /* Clip als Kreis, aber mit Radius 120 statt 100 */
   }
   .needle-wrap svg{width:100%;height:100%;overflow:hidden;display:block;}
   .needle-wrap .radar-focus{transition:filter .3s ease;filter:drop-shadow(0 0 0 rgba(0,0,0,0));}
@@ -573,12 +574,12 @@
           </svg>
         </div>
         <div id="needleWrap" class="needle-wrap">
-          <svg viewBox="0 0 200 200" aria-hidden="true">
+          <svg viewBox="-20 -20 240 240" aria-hidden="true">
             <!-- Richtungsstrahl (von Mitte zum Ziel) + Blip -->
             <g class="radar-focus">
-              <path d="M100 100 L94 20 L106 20 Z" fill="var(--accent)" opacity="0.28"/>
-              <circle cx="100" cy="20" r="12" fill="var(--accent)" opacity="0.22"/>
-              <circle cx="100" cy="20" r="6" fill="var(--accent)"/>
+              <path d="M100 100 L94 8 L106 8 Z" fill="var(--accent)" opacity="0.28"/>
+              <circle cx="100" cy="8" r="12" fill="var(--accent)" opacity="0.22"/>
+              <circle cx="100" cy="8" r="6" fill="var(--accent)"/>
             </g>
             <!-- Barrieren als rote Querstriche im Sweep (mehrere möglich) -->
             <g id="barrierMarks" style="display:none"></g>
@@ -674,7 +675,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = '2026.07.08.17';
+const APP_VERSION = '2026.07.08.18';
 
 /* ---------------- Geo-Mathe ---------------- */
 const R = 6371000; // m
@@ -1187,7 +1188,7 @@ function positionSecondaryMarkers(pos, brg, dist){
   if(finalMarker){
     const finalBearing = bearing(pos.lat,pos.lon,state.finalDest.lat,state.finalDest.lon);
     const deltaFromActive = angleDelta(brg, finalBearing);
-    const p2 = radarPointFromDistanceAndAngle(finalRel, deltaFromActive, scale, { minR:58, maxR:84 });
+    const p2 = radarPointFromDistanceAndAngle(finalRel, deltaFromActive, scale, { minR:58, maxR:88 });
     finalMarker.style.display = '';
     el('finalMarkerHalo').setAttribute('cx', p2.x.toFixed(1));
     el('finalMarkerHalo').setAttribute('cy', p2.y.toFixed(1));
@@ -1504,9 +1505,10 @@ const COMPASS_MAX_JITTER_SLOW = 90;
 const COMPASS_MIN_SAMPLES_SLOW = 2;
 
 /* Radar-Geometrie: Blip-Radius bei voller Zieldistanz.
-   Clip-Grenze liegt bei 100; Blip-Halo ist 12 groß → 80 + 12 = 92 bleibt sauber
-   innerhalb des äußeren Rings (94) und wird nirgends angeschnitten. */
-const RADAR_BLIP_R = 80;
+   Der Blip sitzt außen am Ring (92); sein Halo (12) ragt bis 104 nach außen.
+   Die Radar-Ebene ist per inset:-10% + viewBox -20..220 bis Radius 120 zeichenbar,
+   der Halo bleibt also vollständig sichtbar und wird nirgends angeschnitten. */
+const RADAR_BLIP_R = 92;
 
 /* Mini-Karte (nur Lightmode + Pro): lokaler, maßstäblicher Ausschnitt im Radar. */
 const MAP_RANGE_M = 450;          // Radius des sichtbaren Ausschnitts in Metern (= viewBox r 93)
