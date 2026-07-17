@@ -675,7 +675,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = '2026.07.08.18';
+const APP_VERSION = '2026.07.08.19';
 
 /* ---------------- Geo-Mathe ---------------- */
 const R = 6371000; // m
@@ -1942,6 +1942,21 @@ function startGeolocation(){
   );
 }
 
+/* Akku: GPS (High-Accuracy) ist der größte Einzelverbraucher. Im Hintergrund
+   wird der Watch deshalb pausiert und bei Rückkehr automatisch neu gestartet.
+   (iOS suspendiert PWAs ohnehin; auf Android läuft ein Watch sonst weiter.) */
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState === 'hidden'){
+    if(state.watchId !== null){
+      navigator.geolocation.clearWatch(state.watchId);
+      state.watchId = null;
+    }
+  }else if(document.visibilityState === 'visible'){
+    // Navigation aktiv, aber Watch pausiert → wieder aufnehmen.
+    if(state.dest && state.watchId === null) startGeolocation();
+  }
+});
+
 /* ---------------- Kompass (Fallback) ---------------- */
 function compassJitter(history){
   if(history.length < 2) return 0;
@@ -2177,6 +2192,7 @@ function frame(){
 
 /* ---------------- Versions-Check ---------------- */
 async function checkVersion(){
+  if(document.visibilityState !== 'visible') return; // im Hintergrund kein Netzwerk
   try{
     const res = await fetch('./version.json?t=' + Date.now(), { cache:'no-store' });
     if(!res.ok) return;
