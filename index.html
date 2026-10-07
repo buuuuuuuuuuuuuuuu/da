@@ -449,6 +449,7 @@
   .modal-summary{font-size:13px;line-height:1.45;color:var(--fg);}
   .modal-debug{padding:12px 14px;border-radius:var(--r-sm);background:var(--surface-2);border:1px solid var(--hairline);
     color:var(--muted);font-size:11px;line-height:1.5;white-space:pre-wrap;word-break:break-word;}
+  .modal-debug.hide{display:none;}
   body.modal-open{overflow:hidden;}
 @media (prefers-reduced-motion:reduce){
     .spinner{animation:none;}
@@ -675,7 +676,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = '2026.07.08.19';
+const APP_VERSION = '2026.10.07.01';
 
 /* ---------------- Geo-Mathe ---------------- */
 const R = 6371000; // m
@@ -737,7 +738,13 @@ function polylineCrossFraction(a, b, pts){
   return best;
 }
 
+// Jeder Check bekommt eine Nummer; Start/Beenden/Moduswechsel erhöhen sie,
+// damit eine verspätete Overpass-Antwort den neuen Zustand nicht überschreibt.
+let barrierCheckSeq = 0;
+function invalidateBarrierCheck(){ barrierCheckSeq++; }
 async function checkBarriers(pos, dest){
+  const seq = ++barrierCheckSeq;
+  const stale = () => seq !== barrierCheckSeq || !state.proMode;
   try{
     hideBarrierError();
     setBarrierDebug('Barrieren-Check startet …');
@@ -774,6 +781,7 @@ out geom tags;`;
       method: 'POST',
       body: 'data=' + encodeURIComponent(query),
     });
+    if(stale()) return;
     if(!res.ok){
       setBarrierDebug(`Barrieren-Check: HTTP ${res.status}`);
       setBarrierError(`Barrieren-Check fehlgeschlagen · Overpass HTTP ${res.status}`);
@@ -781,6 +789,7 @@ out geom tags;`;
       return;
     }
     const data = await res.json();
+    if(stale()) return;
 
     let hitWater = false, hitRail = false, hitMotorway = false;
     let waterWays = 0, waterRelations = 0, railWays = 0, motorwayWays = 0, levelCrossings = 0, bridgeWays = 0;
@@ -840,6 +849,7 @@ out geom tags;`;
     };
 
     const pendingBridges = [];
+    const pendingLevelCrossings = [];
 
     for(const element of (data.elements || [])){
       const tags = element.tags || {};
@@ -874,14 +884,24 @@ out geom tags;`;
 
       if(element.type === 'node' && tags.railway === 'level_crossing'){
         levelCrossings++;
-        pushCandidate(element.lat, element.lon, 'level_crossing', 'rail', tags.name || '', tags);
+        pendingLevelCrossings.push({ lat: element.lat, lon: element.lon, name: tags.name || '', tags });
       }
     }
 
-    // Jetzt sind alle hit*-Flags final — Brücken-/Tunnel-Kandidaten labeln und einreihen.
-    const bridgeBarrierType = hitMotorway ? 'motorway' : (hitRail ? 'rail' : 'water');
-    for(const b of pendingBridges){
-      pushCandidate(b.mid.lat, b.mid.lon, b.type, bridgeBarrierType, b.name, b.tags);
+    // Jetzt sind alle Treffer bekannt. Querungen nur vorschlagen, wenn die Luftlinie
+    // tatsächlich eine passende Barriere kreuzt — sonst entstehen Schein-Barrieren.
+    if(hitRail){
+      for(const lc of pendingLevelCrossings) pushCandidate(lc.lat, lc.lon, 'level_crossing', 'rail', lc.name, lc.tags);
+    }
+    // Brücken/Tunnel der entlang der Luftlinie nächstgelegenen Barriere zuordnen,
+    // statt alle pauschal einem Typ.
+    if(barrierMarks.length){
+      for(const b of pendingBridges){
+        const t = projFractionM(pos, dest, b.mid);
+        let nearest = barrierMarks[0], nd = Infinity;
+        for(const m of barrierMarks){ const d = Math.abs(m.t - t); if(d < nd){ nd = d; nearest = m; } }
+        pushCandidate(b.mid.lat, b.mid.lon, b.type, nearest.type, b.name, b.tags);
+      }
     }
 
     const unique = new Map();
@@ -912,6 +932,7 @@ out geom tags;`;
     showBarrierAlert(hitWater, hitRail, hitMotorway);
     setBarrierDebug(`Barrieren-Check: ok · Elemente ${data.elements?.length || 0} · Wasser-Ways ${waterWays} · Wasser-Relationen ${waterRelations} · Bahn-Ways ${railWays} · Autobahn-Ways ${motorwayWays} · Barrieren ${state.barriers.length} · Querungen ${suggestions.length} · Treffer Wasser ${hitWater ? 'ja' : 'nein'} · Treffer Bahn ${hitRail ? 'ja' : 'nein'} · Treffer Autobahn ${hitMotorway ? 'ja' : 'nein'}`);
   }catch(err){
+    if(stale()) return;
     setBarrierDebug(`Barrieren-Check: Fehler · ${err && err.message ? err.message : err}`);
     setBarrierError('Barrieren-Check fehlgeschlagen – Netzwerk/Overpass prüfen.');
     console.warn('Barrieren-Check fehlgeschlagen', err);
@@ -1077,6 +1098,7 @@ function clearRoute(message=''){
 // Vollständiges Zurücksetzen des Routen-/Barrieren-Zustands (Start, Beenden, Moduswechsel).
 // clearRoute() ist bewusst separat: es behält die erkannten Barrieren zum Neu-Wählen.
 function resetRouteState(){
+  invalidateBarrierCheck();
   state.selectedCrossings = {};
   state.barriers = [];
   state.focusBarrierId = null;
@@ -1214,8 +1236,10 @@ function metersPerDeg(lat){
 async function maybeFetchMiniMap(pos){
   if(!isLightMapMode() || state.mapFetching) return;
   const now = Date.now();
-  if(state.mapCenter){
-    const moved = distance(pos.lat, pos.lon, state.mapCenter.lat, state.mapCenter.lon);
+  // Nach Erfolg UND nach Fehlschlag drosseln — sonst feuert jeder GPS-Fix (~1/s) eine Anfrage.
+  const ref = state.mapCenter || state.mapFailCenter;
+  if(ref){
+    const moved = distance(pos.lat, pos.lon, ref.lat, ref.lon);
     if(moved < MAP_REFETCH_MOVE_M && (now - state.mapFetchedAt) < MAP_REFETCH_MS) return;
   }
   state.mapFetching = true;
@@ -1233,7 +1257,7 @@ async function maybeFetchMiniMap(pos){
 );
 out geom 4000;`;
     const res = await fetch('https://overpass-api.de/api/interpreter', { method:'POST', body:'data=' + encodeURIComponent(q) });
-    if(!res.ok){ state.mapFetching = false; return; }
+    if(!res.ok){ state.mapFetching = false; state.mapFetchedAt = Date.now(); state.mapFailCenter = { lat:pos.lat, lon:pos.lon }; return; }
     const data = await res.json();
     const geom = { roads:[], water:[], rail:[], motorway:[] };
     for(const eln of (data.elements || [])){
@@ -1248,9 +1272,14 @@ out geom 4000;`;
     }
     state.mapGeom = geom;
     state.mapCenter = { lat:pos.lat, lon:pos.lon };
+    state.mapFailCenter = null;
     state.mapFetchedAt = Date.now();
     buildMiniMapPaths();
-  }catch(_){ /* offline/Overpass — Karte bleibt einfach leer */ }
+  }catch(_){
+    // offline/Overpass — Karte bleibt leer; Fehlversuch zählt fürs Drosseln mit.
+    state.mapFetchedAt = Date.now();
+    state.mapFailCenter = { lat:pos.lat, lon:pos.lon };
+  }
   state.mapFetching = false;
 }
 // Geometrie einmalig in ein nord-oben-Koordinatensystem (viewBox) um das Abruf-Zentrum bauen.
@@ -1308,7 +1337,7 @@ function updateMiniMap(pos, headingDeg){
   g.setAttribute('transform', `rotate(${(-state.mapHeading).toFixed(2)} 100 100) translate(${tx.toFixed(2)} ${ty.toFixed(2)})`);
 }
 function resetMiniMap(){
-  state.mapGeom = null; state.mapCenter = null; state.mapHeading = null; state.mapFetchedAt = 0; state.mapFetching = false;
+  state.mapGeom = null; state.mapCenter = null; state.mapFailCenter = null; state.mapHeading = null; state.mapFetchedAt = 0; state.mapFetching = false;
   const g = el('miniMap'); if(g) g.innerHTML = '';
   document.body.classList.remove('map-on');
 }
@@ -1464,6 +1493,7 @@ const state = {
   mapHeading: null,
   mapFetchedAt: 0,
   mapFetching: false,
+  mapFailCenter: null,
 };
 
 /* Laufzeitvariablen für „Display anlassen" / Sparmodus.
@@ -1559,17 +1589,18 @@ function labelFor(item){
 
 function normalizeSearchQuery(q){
   return (q || '')
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
-    .replace(/str\.(?=\s|$)/gi, 'straße')
-    .replace(/strasse/gi, 'straße')
-    .replace(/[.,;]+/g, ' ')
+    .normalize('NFC')
+    .replace(/str\.(?=\s|,|$)/gi, 'straße')
+    .replace(/strasse/gi, 'straße')
+    .replace(/[.;]+/g, ' ')
+    .replace(/\s*,\s*/g, ', ')
     .replace(/\s+/g, ' ')
     .trim();
 }
 
 function buildSuggestionQueries(q){
   const cleaned = normalizeSearchQuery(q);
-  const compact = cleaned.replace(/\d+[a-z]?/gi, '').replace(/\s+/g, ' ').trim();
+  const compact = cleaned.replace(/\b\d+[a-z]?\b/gi, '').replace(/\s+/g, ' ').replace(/\s+,/g, ',').replace(/,\s*(?=,|$)/g, '').trim();
   const swappedUmlauts = cleaned
     .replace(/ae/gi, 'ä')
     .replace(/oe/gi, 'ö')
@@ -1691,6 +1722,13 @@ function startNav(dest){
   resetRouteState();
   resetMiniMap();
   state.barrierChecked = false;
+  // Standort der letzten Navigation verwerfen — sonst rechnen Distanz und
+  // Barrieren-Check mit einer evtl. Stunden alten Position.
+  state.pos = null;
+  state.lastCtx = null;
+  el('distVal').textContent = '—';
+  el('distUnit').textContent = '';
+  el('distContext').textContent = '';
   state.smoothHeading = null;
   state.displayAngle = 0;
   state.gpsCourse = null;
@@ -1842,10 +1880,13 @@ function renderFavorites(){
 /* ----- Speichern-Sheet (Tag-Auswahl) ----- */
 let pendingTag = null;
 
+// Gespeichert wird immer das Endziel — state.dest zeigt bei aktiver Route aufs Zwischenziel.
+function saveTarget(){ return state.finalDest || state.dest; }
 function openSaveSheet(){
-  if(!state.dest) return;
+  const target = saveTarget();
+  if(!target) return;
   pendingTag = null;
-  el('saveSheetSub').textContent = state.dest.name;
+  el('saveSheetSub').textContent = target.name;
   const grid = el('tagGrid');
   grid.innerHTML = TAGS.map(t => `<button class="tag-opt" data-tag="${t}">${t}</button>`).join('');
   grid.querySelectorAll('.tag-opt').forEach(opt=>{
@@ -1866,13 +1907,14 @@ el('saveFav').addEventListener('click', openSaveSheet);
 el('saveCancel').addEventListener('click', closeSaveSheet);
 el('saveSheet').addEventListener('click', (e)=>{ if(e.target.id === 'saveSheet') closeSaveSheet(); });
 el('saveConfirm').addEventListener('click', ()=>{
-  if(!state.dest) return closeSaveSheet();
+  const target = saveTarget();
+  if(!target) return closeSaveSheet();
   const tag = pendingTag || TAGS[0];
   addFavorite({
     id: 'f' + Date.now(),
-    name: state.dest.name,
-    lat: state.dest.lat,
-    lon: state.dest.lon,
+    name: target.name,
+    lat: target.lat,
+    lon: target.lon,
     tag,
   });
   closeSaveSheet();
@@ -2220,9 +2262,17 @@ document.addEventListener('visibilitychange', ()=>{
 /* ---------------- Service Worker ---------------- */
 if('serviceWorker' in navigator){
   let __refreshing = false;
+  // Beim allerersten Besuch gibt es noch keinen Controller — dann ist der Wechsel kein Update.
+  const hadController = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.addEventListener('controllerchange', ()=>{
-    // Neuer SW hat übernommen → einmalig neu laden, damit der frische Stand greift.
-    if(__refreshing) return; __refreshing = true; location.reload();
+    if(!hadController || __refreshing) return;
+    if(state.dest){
+      // Mitten in der Navigation nicht neu laden (Ziel ginge verloren) — Banner reicht.
+      el('updateBanner').classList.add('show');
+      document.body.classList.add('has-banner');
+      return;
+    }
+    __refreshing = true; location.reload();
   });
   window.addEventListener('load', ()=>{
     navigator.serviceWorker.register('./sw.js').then(reg=>{
