@@ -676,7 +676,7 @@
 <script>
 "use strict";
 
-const APP_VERSION = '2026.10.07.01';
+const APP_VERSION = '2026.10.07.02';
 
 /* ---------------- Geo-Mathe ---------------- */
 const R = 6371000; // m
@@ -1555,7 +1555,19 @@ function show(name){
   views[name].classList.add('active');
 }
 
-/* ---------------- Adresssuche (Nominatim) ---------------- */
+/* ---------------- Adresssuche (Nominatim) ----------------
+   Nutzungsrichtlinie: höchstens 1 Anfrage pro Sekunde, keine Wiederholungen
+   identischer Anfragen. Alle Abrufe laufen deshalb durch eine Drossel mit
+   Mindestabstand und einen kleinen Ergebnis-Cache. */
+const NOMINATIM_MIN_INTERVAL_MS = 1100;
+let nominatimNextAt = 0;
+const geocodeCache = new Map();
+async function nominatimSlot(){
+  const now = Date.now();
+  const wait = Math.max(0, nominatimNextAt - now);
+  nominatimNextAt = Math.max(now, nominatimNextAt) + NOMINATIM_MIN_INTERVAL_MS;
+  if(wait) await new Promise(r => setTimeout(r, wait));
+}
 async function geocode(query, opts = {}){
   const { near = null, limit = 6, bounded = false } = opts;
   const params = new URLSearchParams({
@@ -1572,9 +1584,14 @@ async function geocode(query, opts = {}){
     if(bounded) params.set('bounded', '1');
   }
   const url = 'https://nominatim.openstreetmap.org/search?' + params.toString();
+  if(geocodeCache.has(url)) return geocodeCache.get(url);
+  await nominatimSlot();
   const res = await fetch(url, { headers:{ 'Accept':'application/json' } });
   if(!res.ok) throw new Error('geocode');
-  return res.json();
+  const data = await res.json();
+  if(geocodeCache.size > 50) geocodeCache.delete(geocodeCache.keys().next().value);
+  geocodeCache.set(url, data);
+  return data;
 }
 
 function labelFor(item){
@@ -1639,20 +1656,20 @@ function dedupeSearchResults(items){
   return out;
 }
 
-async function searchSmart(query){
+// Pro Schreibweise genau EINE Anfrage: die viewbox (ohne bounded=1) lässt Nominatim
+// Treffer in der Nähe bevorzugen, liefert aber weiterhin auch weiter entfernte.
+async function searchSmart(query, onProgress){
   const hasFix = !!(state.pos && Number.isFinite(state.pos.lat) && Number.isFinite(state.pos.lon));
-  const localExact = hasFix ? await geocode(query, { near: state.pos, limit: 6 }) : [];
-  const globalExact = await geocode(query, { limit: hasFix ? 6 : 8 });
+  const opts = hasFix ? { near: state.pos, limit: 10 } : { limit: 8 };
   const sortByDistance = list => hasFix ? [...list].sort((a, b) => resultDistance(a) - resultDistance(b)) : list;
-  const exact = dedupeSearchResults([...sortByDistance(localExact), ...sortByDistance(globalExact)]).slice(0, 8);
+  const exact = sortByDistance(dedupeSearchResults(await geocode(query, opts))).slice(0, 8);
   if(exact.length){
     return { items: exact, mode: hasFix ? 'near-first' : 'exact', usedQuery: query };
   }
-  const variants = buildSuggestionQueries(query);
+  const variants = buildSuggestionQueries(query).slice(0, 3);
   for(const variant of variants){
-    const localVariant = hasFix ? await geocode(variant, { near: state.pos, limit: 6 }) : [];
-    const globalVariant = await geocode(variant, { limit: 8 });
-    const suggested = dedupeSearchResults([...sortByDistance(localVariant), ...sortByDistance(globalVariant)]).slice(0, 8);
+    if(onProgress) onProgress(variant);
+    const suggested = sortByDistance(dedupeSearchResults(await geocode(variant, opts))).slice(0, 8);
     if(suggested.length){
       return { items: suggested, mode: 'suggest', usedQuery: variant };
     }
@@ -1662,16 +1679,21 @@ async function searchSmart(query){
 
 const qInput = el('q'), goBtn = el('go'), resultsEl = el('results'), note = el('searchNote');
 
+let searching = false;
 async function runSearch(){
   const q = qInput.value.trim();
-  if(!q) return;
+  if(!q || searching) return;   // Enter während laufender Suche würde Anfragen verdoppeln
+  searching = true;
   qInput.blur();
   resultsEl.innerHTML = '';
   note.className = 'note muted';
   note.innerHTML = '<span class="spinner"></span>Suche …';
   goBtn.disabled = true;
   try{
-    const found = await searchSmart(q);
+    const found = await searchSmart(q, variant => {
+      note.innerHTML = '<span class="spinner"></span>';
+      note.appendChild(document.createTextNode(`Keine exakten Treffer – probiere „${variant}“ …`));
+    });
     goBtn.disabled = false;
     if(!found.items.length){
       note.className = 'note muted';
@@ -1710,6 +1732,8 @@ async function runSearch(){
     goBtn.disabled = false;
     note.className = 'note err';
     note.textContent = 'Suche gerade nicht erreichbar. Internetverbindung prüfen und nochmal.';
+  }finally{
+    searching = false;
   }
 }
 goBtn.addEventListener('click', runSearch);
@@ -2012,12 +2036,51 @@ function compassJitter(history){
   return max - min;
 }
 
+/* Kompassrichtung (0° = Norden, im Uhrzeigersinn) aus absoluten Euler-Winkeln (Android).
+   Rotation Erde←Gerät nach W3C: R = Rz(alpha)·Rx(beta)·Ry(gamma); Erdachsen x=Ost, y=Nord.
+   Ausgewertet wird die Summe aus „Bildschirm-oben"-Achse und Rückkamera-Achse (−z):
+   flach gehalten zählt die Oberkante, aufrecht die Blickrichtung, dazwischen beide
+   (zeigen dann in dieselbe Richtung). Bildschirmdrehung wird über die Oben-Achse berücksichtigt.
+   Liefert null, wenn die Lage keine eindeutige Richtung hergibt. */
+function headingFromEuler(alpha, beta, gamma, screenDeg){
+  const ca = Math.cos(toRad(alpha)), sa = Math.sin(toRad(alpha));
+  const cb = Math.cos(toRad(beta || 0)), sb = Math.sin(toRad(beta || 0));
+  const cg = Math.cos(toRad(gamma || 0)), sg = Math.sin(toRad(gamma || 0));
+  const toEarth = (x, y, z) => {
+    [x, z] = [cg*x + sg*z, -sg*x + cg*z];   // Ry(gamma)
+    [y, z] = [cb*y - sb*z, sb*y + cb*z];    // Rx(beta)
+    [x, y] = [ca*x - sa*y, sa*x + ca*y];    // Rz(alpha)
+    return [x, y];
+  };
+  const up = toEarth(Math.sin(toRad(screenDeg)), Math.cos(toRad(screenDeg)), 0);
+  const back = toEarth(0, 0, -1);
+  const east = up[0] + back[0], north = up[1] + back[1];
+  if(Math.hypot(east, north) < 0.2) return null;
+  return (toDeg(Math.atan2(east, north)) + 360) % 360;
+}
+function screenAngle(){
+  const a = (screen.orientation && typeof screen.orientation.angle === 'number') ? screen.orientation.angle
+          : (typeof window.orientation === 'number' ? window.orientation : 0);
+  return a || 0;
+}
 function onOrientation(e){
-  if(typeof e.webkitCompassHeading !== 'number' || Number.isNaN(e.webkitCompassHeading)) return;
-  const heading = (e.webkitCompassHeading + 360) % 360;
-  const accuracy = (typeof e.webkitCompassAccuracy === 'number' && !Number.isNaN(e.webkitCompassAccuracy))
-    ? Math.abs(e.webkitCompassAccuracy)
-    : null;
+  let heading, accuracy = null;
+  if(typeof e.webkitCompassHeading === 'number' && !Number.isNaN(e.webkitCompassHeading)){
+    // iOS: fertige, neigungskompensierte Kompassrichtung inkl. Genauigkeit.
+    heading = (e.webkitCompassHeading + 360) % 360;
+    accuracy = (typeof e.webkitCompassAccuracy === 'number' && !Number.isNaN(e.webkitCompassAccuracy))
+      ? Math.abs(e.webkitCompassAccuracy)
+      : null;
+  }else if((e.type === 'deviceorientationabsolute' || e.absolute === true)
+           && typeof e.alpha === 'number' && !Number.isNaN(e.alpha)){
+    // Android (Chrome: deviceorientationabsolute, Firefox: deviceorientation mit absolute=true).
+    // Keine Genauigkeitsangabe → Qualität wird allein über das Jitter-Gate beurteilt.
+    heading = headingFromEuler(e.alpha, e.beta, e.gamma, screenAngle());
+    if(heading == null) return;
+  }else{
+    // relatives deviceorientation (alpha ohne Nordbezug) ist als Kompass unbrauchbar
+    return;
+  }
   const ts = Date.now();
   state.compassHeading = heading;
   state.compassTs = ts;
@@ -2037,6 +2100,10 @@ async function requestCompass(){
         el('enableCompass').classList.remove('hide');
       }
     }else if(DOE){
+      // Android/Chrome liefert Nordbezug nur über deviceorientationabsolute.
+      if('ondeviceorientationabsolute' in window){
+        window.addEventListener('deviceorientationabsolute', onOrientation, true);
+      }
       window.addEventListener('deviceorientation', onOrientation, true);
       state.compassGranted = true;
     }
@@ -2071,7 +2138,8 @@ function getTrustedCompassHeading(now = Date.now(), relaxed = false){
   const accuracyValues = history.map(item => item.accuracy).filter(v => v!=null && Number.isFinite(v));
   const accuracy = accuracyValues.length ? Math.max(...accuracyValues) : null;
   const maxAcc = relaxed ? COMPASS_MAX_ACCURACY_SLOW : COMPASS_MAX_ACCURACY;
-  if(accuracy==null || accuracy > maxAcc) return null;
+  // iOS liefert eine Genauigkeit, Android nicht — dort entscheidet das Jitter-Gate allein.
+  if(accuracy!=null && accuracy > maxAcc) return null;
   const jitter = compassJitter(history);
   const maxJit = relaxed ? COMPASS_MAX_JITTER_SLOW : COMPASS_MAX_JITTER;
   if(jitter > maxJit) return null;
@@ -2212,9 +2280,9 @@ function frame(){
       state.smoothHeading = null;
       if(!hintLocked()){
         if(state.compassGranted){
-          el('navHint').textContent = 'Keine sichere Richtungsquelle. Kurz fahren oder iPhone/Kompass neu ausrichten.';
+          el('navHint').textContent = 'Keine sichere Richtungsquelle. Kurz fahren oder Handy in einer 8 schwenken (Kompass kalibrieren).';
         }else{
-          el('navHint').textContent = 'Keine sichere Richtungsquelle. Kurz fahren oder den iPhone-Kompass freigeben.';
+          el('navHint').textContent = 'Keine sichere Richtungsquelle. Kurz fahren oder den Kompass freigeben.';
         }
       }
       if(window.DeviceOrientationEvent && typeof window.DeviceOrientationEvent.requestPermission==='function'

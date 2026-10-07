@@ -1,4 +1,4 @@
-const CACHE='da-shell-2026.10.07.01';
+const CACHE='da-shell-2026.10.07.02';
 const SHELL=['./','./index.html','./manifest.json','./version.json','./icon-192.png','./icon-512.png','./apple-touch-icon.png','./favicon.png'];
 const SHELL_PATHS=new Set(SHELL.map(p=>new URL(p,self.registration.scope).pathname));
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).catch(()=>{}));self.skipWaiting();});
